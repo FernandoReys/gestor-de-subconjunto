@@ -33,14 +33,14 @@ function save(){
  clearTimeout(saveTimer);saveTimer=setTimeout(()=>{saveQueue=saveQueue.catch(()=>{}).then(async()=>{
   const latest=JSON.stringify(payload());if(latest===lastSaved)return;
   storageStatus('Salvando no banco SQL…');
-  const response=await fetch('/api/state',{method:'PUT',headers:{'Content-Type':'application/json'},body:latest});
+  const response=await fetch('/api/state.js',{method:'PUT',headers:{'Content-Type':'application/json'},body:latest});
   if(!response.ok)throw new Error((await response.json().catch(()=>({}))).error||'Falha ao salvar.');
   lastSaved=latest;storageStatus('Dados salvos no banco SQL.');
  }).catch(error=>{storageStatus('Falha ao salvar no banco SQL.');notify(error.message);});},450);
 }
 async function loadState(){
  try{
-  const response=await fetch('/api/state',{cache:'no-store'});
+  const response=await fetch('/api/state.js',{cache:'no-store'});
   if(!response.ok)throw new Error('Banco não configurado');
   const saved=await response.json();config={...S.defaults(),...saved.config};employees=saved.employees||[];
   if(saved.generated&&employees.length)result=S.generate(config,employees);
