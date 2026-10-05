@@ -20,7 +20,7 @@ O servidor local serve `dist/`. Sem banco configurado, a interface inicia vazia 
 1. Crie um **banco novo e vazio** em PostgreSQL ou Neon. Não execute a migração sobre um banco operacional existente sem revisão.
 2. Execute [`db/schema.sql`](db/schema.sql) nesse banco. A migração cria `employees` e `app_settings` sem inserir pessoas, escalas ou dados fictícios.
 3. Configure `DATABASE_URL` como variável de ambiente **somente no servidor** no projeto Vercel. Jamais coloque a URL no repositório ou no JavaScript servido ao navegador.
-4. Implante novamente. `/api/state` passa a ler e salvar funcionários, setor, presença, restrições e configuração do turno em transação. O rodízio é calculado no navegador a partir desses dados; o estado de geração é persistido para recalcular ao reabrir.
+4. Implante novamente. `/api/state.js` passa a ler e salvar funcionários, setor, presença, restrições e configuração do turno em transação. O rodízio é calculado no navegador a partir desses dados; o estado de geração é persistido para recalcular ao reabrir.
 
 Os setores aceitos são Sala de máquinas, Linha de bolsa, Subconjunto e Embalagem final. Somente funcionários marcados **Ativo na linha** entram na escala, independentemente do setor de origem. O cadastro inicial fica vazio. O banco é a origem dos dados quando configurado; rascunhos locais anteriores não são enviados automaticamente.
 
