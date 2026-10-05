@@ -33,3 +33,12 @@ test('Ausência e fixação incompatível não são contornadas',()=>{const p=S.
 test('Funcionário sem cola não ocupa outro posto mesmo com cadastro inconsistente',()=>{const p=withRelief();p[0].noGlue=true;p[0].fixed='20';const r=S.generate(S.defaults(),p);verifyPlan(r,p);assert.ok(r.warnings.some(w=>w.includes('não está permitido')));assert.ok(r.rows.every(x=>!x.assign.includes(p[0].id)));});
 test('Horários inválidos ou sobrepostos bloqueiam geração',()=>{for(const c of [{end:'13:00'},{coffee:'18:00',coffeeDuration:30},{lunchDuration:150},{start:'x'}])assert.ok(S.generate({...S.defaults(),...c},S.sampleEmployees()).errors.length);});
 test('Modo a cada duas horas é verificável sem apagar o tempo nas pausas',()=>{const p=withRelief(),r=S.generate({...S.defaults(),rotation:'everyTwoHours'},p);verifyPlan(r,p);assert.ok(r.rows.some(x=>x.start===975&&x.kind==='work'));});
+test('Assistente e operador reservado em posto adicional não entram no rodízio',()=>{
+ const people=withRelief();people[0].role='Assistente';const extra=people[1];
+ const config={...S.defaults(),extraPosts:[{id:'80',name:'Apoio',employeeId:extra.id}]};
+ const result=S.generate(config,people);
+ assert.deepEqual(result.errors,[]);
+ assert.ok(result.rows.every(row=>!row.assign.includes(people[0].id)&&!row.assign.includes(extra.id)));
+ const preckoff=S.generatePreckoff(config,people);
+ assert.ok(preckoff.eligible.every(id=>id!==people[0].id&&id!==extra.id));
+});

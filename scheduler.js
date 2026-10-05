@@ -29,7 +29,7 @@
     return {start,end,breaks,errors,workMinutes:end-start-breaks.reduce((n,b)=>n+b.duration,0)};
   }
   function defaults() {
-    return { date:new Date().toLocaleDateString('en-CA'),start:'14:00',end:'21:54',coffee:'16:00',coffeeDuration:15,lunch:'18:10',lunchDuration:33,rotation:'afterLunch',product:'nacional-a' };
+    return { date:new Date().toLocaleDateString('en-CA'),start:'14:00',end:'21:54',coffee:'16:00',coffeeDuration:15,lunch:'18:10',lunchDuration:33,rotation:'afterLunch',product:'nacional-a',extraPosts:[],organizerIds:[] };
   }
   function sampleEmployees() {
     const names=['Fernando','Rodrigo','Ricardo','Rogerio','Mario','Maria'];
@@ -43,7 +43,9 @@
   }
   function generate(config, employees) {
     const time=shift(config), errors=[...time.errors];
-    const people=employees.filter(p=>p.active&&p.present);
+    const extras=Array.isArray(config.extraPosts)?config.extraPosts:[];
+    const reserved=new Set(extras.map(p=>p.employeeId).filter(Boolean));
+    const people=employees.filter(p=>p.active&&p.present&&(p.role||'Operador')==='Operador'&&!reserved.has(p.id));
     if(people.length>20) errors.push('Esta simulação aceita até 20 pessoas presentes por vez.');
     if(!people.length) errors.push('Selecione pelo menos uma pessoa presente.');
     if(new Set(people.map(p=>p.id)).size!==people.length) errors.push('Há identificadores de funcionários duplicados.');
@@ -123,7 +125,8 @@
   function generatePreckoff(config, employees) {
     const time=shift(config), station=stations.find(s=>s.id==='40');
     if(time.errors.length) return {errors:time.errors,entries:[],warnings:[],workMinutes:0};
-    const people=employees.filter(p=>eligible(p,station));
+    const reserved=new Set((Array.isArray(config.extraPosts)?config.extraPosts:[]).map(p=>p.employeeId).filter(Boolean));
+    const people=employees.filter(p=>(p.role||'Operador')==='Operador'&&!reserved.has(p.id)&&eligible(p,station));
     const needed=Math.ceil(time.workMinutes/60), warnings=[];
     if(people.length<needed) warnings.push(`Preckoff precisa de ${needed} pessoas diferentes para ${duration(time.workMinutes)} efetivas; há ${people.length} elegíveis.`);
     const blocks=[]; let cursor=time.start;
