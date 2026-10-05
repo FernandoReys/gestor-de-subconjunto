@@ -6,7 +6,7 @@
   'use strict';
   const stations = [
     { id:'20', name:'BSD', description:'Coletor · início do subconjunto', limit:null },
-    { id:'30', name:'Clampe', description:'Posto permitido para Maria no exemplo', limit:null },
+    { id:'30', name:'Clampe', description:'Posto permitido a pessoas com restrição sem cola', limit:null },
     { id:'40', name:'Preckoff', description:'Rodízio a cada 60 minutos trabalhados', limit:60 },
     { id:'50', name:'Y', description:'Etapa intermediária do subconjunto', limit:null },
     { id:'60', name:'Agulha', description:'Etapa anterior à contagem', limit:null },

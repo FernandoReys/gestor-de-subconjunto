@@ -3,3 +3,5 @@ node_modules/
 upload/
 generated_images/
 verification/
+.env
+.env.*
