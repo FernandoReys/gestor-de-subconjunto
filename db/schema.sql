@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS employees (
   id uuid PRIMARY KEY,
   name varchar(100) NOT NULL,
   sector text NOT NULL CHECK (sector IN ('Sala de máquinas', 'Linha de bolsa', 'Subconjunto', 'Embalagem final')),
+  role text NOT NULL DEFAULT 'Operador' CHECK (role IN ('Operador', 'Assistente')),
   present boolean NOT NULL DEFAULT false,
   no_glue boolean NOT NULL DEFAULT false,
   allowed text[] NOT NULL DEFAULT ARRAY['20','30','40','50','60','70'],
