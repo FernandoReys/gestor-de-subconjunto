@@ -36,12 +36,21 @@ test('SQL API starts empty and rejects invalid sector', async () => {
   assert.equal(bad.statusCode, 400);
 });
 
-test('SQL API persists employee sector and availability in one transaction', async () => {
+test('SQL API persists employee sector, role and availability in one transaction', async () => {
   calls.length = 0;
-  const employee = { id: 'd73c2b93-3cbc-4efb-927a-abbf8579efab', name: 'Ana Souza', sector: 'Sala de máquinas', present: false, allowed: ['20', '30'], fixed: '', initial: '20' };
+  const employee = { id: 'd73c2b93-3cbc-4efb-927a-abbf8579efab', name: 'Ana Souza', sector: 'Sala de máquinas', role: 'Assistente', present: false, allowed: ['20', '30'], fixed: '', initial: '20' };
   const response = await request('PUT', { config: { start: '14:00' }, generated: false, employees: [employee] });
   assert.equal(response.statusCode, 200);
   assert.equal(response.data.saved, true);
   assert.match(calls[2].values[0], /"sector":"Sala de máquinas"/);
   assert.match(calls[2].values[0], /"present":false/);
+  assert.match(calls[2].values[0], /"role":"Assistente"/);
+});
+
+test('SQL API rejects duplicate extra assignments and invalid organizers', async () => {
+  const id='d73c2b93-3cbc-4efb-927a-abbf8579efab';
+  const employee={id,name:'Ana',sector:'Subconjunto',role:'Operador',present:true,allowed:['20']};
+  const config={extraPosts:[{id:'80',name:'Apoio',employeeId:id},{id:'90',name:'Embalagem',employeeId:id}]};
+  assert.equal((await request('PUT',{config,employees:[employee]})).statusCode,400);
+  assert.equal((await request('PUT',{config:{organizerIds:[id]},employees:[employee]})).statusCode,400);
 });
