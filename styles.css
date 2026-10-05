@@ -3362,9 +3362,20 @@ body[data-theme="light"] select {
 .live-simple .live-board-head { position: relative; z-index: 1; }
 .live-simple:fullscreen { display: flex; flex-direction: column; justify-content: center; background: #07192b; }
 .live-simple:fullscreen .live-photo { flex: 1; min-height: 0; max-height: calc(100vh - 120px); }
+.organizer-list { display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.organizer-list .check-field { margin: 4px 0; padding: 12px 16px; border: 1px solid #dceaf5; border-radius: 9px; }
+.organizer-summary { padding: 0 20px 20px; }
+.organizer-result { padding: 18px 22px; margin-bottom: 14px; }
+.extra-select .button { margin-top: 10px; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.settings-card { padding: 26px; display: grid; justify-items: start; gap: 13px; }
+.settings-card h2 { font-size: 20px; margin: 0; }
+.settings-card p { color: #7891a6; line-height: 1.65; font-size: 12px; margin: 0 0 8px; }
+.settings-note { margin-top: 18px; }
+body[data-theme="dark"] .organizer-list .check-field { border-color: #30516d; }
+body[data-theme="dark"] .settings-card p { color: #a5c0d4; }
 @media (max-width: 760px) {
   .station-selection { grid-template-columns: 1fr; }
   .post-mini .person-name { text-align: left; }
-  .live-simple .live-board-head { gap: 16px; }
-  .live-simple .live-photo { max-height: 66vh; }
+  .settings-grid { grid-template-columns: 1fr; }
 }
