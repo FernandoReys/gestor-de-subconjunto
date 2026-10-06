@@ -60,3 +60,10 @@ test('Fixação por posição não escala ausentes ou pessoas com restrição e 
  people[0].present=true;people[0].restrictions=[{stationId:'30',reason:'Restrição temporária'}];
  assert.match(S.generate(config,people).errors.join(' '),/sem habilitação/);
 });
+test('FP de doze posições distribui vinte operadores sem duplicar pessoa no mesmo período',()=>{
+ const config={...S.defaults(),fpStations:S.stations.map(s=>({id:s.id,requiredCount:2}))};
+ const people=Array.from({length:20},(_,i)=>({id:`p-${i}`,name:`Pessoa ${i}`,role:'Operador',active:true,present:true,allowed:S.stations.map(s=>s.id),fixed:'',initial:''}));
+ const plan=S.generate(config,people);
+ assert.deepEqual(plan.errors,[]);assert.equal(plan.positions.length,12);
+ for(const row of plan.rows.filter(r=>r.kind==='work'))assert.equal(new Set(row.assign.filter(Boolean)).size,row.assign.filter(Boolean).length);
+});

@@ -56,7 +56,7 @@
   function generate(config, employees) {
     const time=shift(config), errors=[...time.errors];
     const positions=slots(config);
-    if(!positions.length||positions.length>18)errors.push('A FP precisa definir entre 1 e 18 posições válidas.');
+    if(!positions.length||positions.length>12)errors.push('A FP precisa definir entre 1 e 12 posições válidas.');
     const locks=config.locks||{};
     if(Object.keys(locks).some(key=>!positions.some(s=>s.key===key))||new Set(Object.values(locks)).size!==Object.values(locks).length)errors.push('Há fixações inválidas ou repetidas.');
     const initialAssignments=Object.entries(config.manualAssignments||{}).filter(([,id])=>id);
@@ -96,19 +96,21 @@
           return !visited[i].has(s.key);
         }).map(({p,i})=>({i,score:1000000 + (current[j]===i?3000:0) + (p.fixed||locks[s.key]===p.id?10000:0) + (worked===0&&(config.manualAssignments?.[s.key]===p.id||p.initial===s.id)?1500:0) - total[i] - i*.01}));
       });
-      const memo=new Map();
-      function solve(j,mask){
-        if(j===positions.length)return {score:0,assign:[]};
-        const key=`${j}:${mask}`;if(memo.has(key))return memo.get(key);
-        const empty=solve(j+1,mask);let best={score:empty.score,assign:[null,...empty.assign]};
-        for(const c of candidates[j]){
-          const bit=1<<c.i;if(mask&bit)continue;
-          const tail=solve(j+1,mask|bit),score=c.score+tail.score;
-          if(score>best.score)best={score,assign:[c.i,...tail.assign]};
+      // Track occupied positions instead of used people: at most 2^12 states.
+      const size=1<<positions.length,choices=[],byPerson=people.map((_,i)=>[]);
+      candidates.forEach((list,j)=>list.forEach(c=>byPerson[c.i].push({j,score:c.score})));
+      let scores=new Float64Array(size).fill(-Infinity);scores[0]=0;
+      for(const options of byPerson){
+        const next=scores.slice(),trace=new Int16Array(size).fill(-1);
+        for(let mask=0;mask<size;mask++)if(scores[mask]!==-Infinity){
+          for(const {j,score} of options){const bit=1<<j;if(mask&bit)continue;const target=mask|bit,value=scores[mask]+score;if(value>next[target]){next[target]=value;trace[target]=j;}}
         }
-        memo.set(key,best);return best;
+        choices.push(trace);scores=next;
       }
-      return solve(0,0).assign;
+      let best=0;for(let mask=1;mask<size;mask++)if(scores[mask]>scores[best])best=mask;
+      const assign=Array(positions.length).fill(null);
+      for(let i=people.length-1;i>=0;i--){const j=choices[i][best];if(j>=0){assign[j]=i;best^=1<<j;}}
+      return assign;
     }
     for(let t=time.start;t<time.end;t++){
       const pause=time.breaks.find(b=>t>=b.start&&t<b.end);
