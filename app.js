@@ -13,6 +13,7 @@ const pages=[['overview','Visão geral','grid'],['schedule','Montar escala','cal
 const initialSectors=['Sala de máquinas','Linha de Bolsas','Subconjunto','Embalagem final','Outros'];
 const sectors=()=>Array.isArray(config.sectors)?config.sectors:initialSectors;
 let config=S.defaults(), employees=[], result=null, viewIndex=0, theme='dark', query='',fpFocus='',storageMode='loading',lastSaved='',saveTimer=null,saveQueue=Promise.resolve(),pendingOperation=null;
+let authenticated=false;
 const STORAGE='gestor-subconjunto-v4';
 try{localStorage.removeItem('gestor-subconjunto-v2');theme=localStorage.getItem('gestor-theme')==='light'?'light':'dark';}catch{}
 const payload=()=>({config,employees,generated:!!result,...(pendingOperation?{operation:pendingOperation}:{})});
@@ -21,11 +22,13 @@ async function persist(){
  const latest=JSON.stringify(payload());if(latest===lastSaved)return;
  storageStatus('Salvando no banco SQL…');
  const response=await fetch('/api/state.js',{method:'PUT',headers:{'Content-Type':'application/json'},body:latest});
+ if(response.status===401){showLogin('Sua sessão expirou. Entre novamente.');throw new Error('Sessão expirada.');}
  if(!response.ok)throw new Error((await response.json().catch(()=>({}))).error||'Falha ao salvar.');
  pendingOperation=null;lastSaved=JSON.stringify(payload());storageStatus('Dados salvos no banco SQL.');
 }
 function commit(){clearTimeout(saveTimer);saveQueue=saveQueue.catch(()=>{}).then(persist);return saveQueue;}
 function save(){
+ if(!authenticated)return;
  if(storageMode==='loading')return;
  try{localStorage.setItem('gestor-theme',theme);}catch{}
  const data=JSON.stringify(payload());if(data===lastSaved)return;
@@ -39,6 +42,7 @@ function save(){
 async function loadState(){
  try{
   const response=await fetch('/api/state.js',{cache:'no-store'});
+  if(response.status===401){showLogin('Sua sessão expirou. Entre novamente.');return;}
   if(!response.ok)throw new Error('Banco não configurado');
   const saved=await response.json();config={...S.defaults(),...saved.config};employees=saved.employees||[];
   const upgraded=upgradeLegacyFpIds();
@@ -51,6 +55,16 @@ async function loadState(){
   storageMode='local';lastSaved=JSON.stringify(payload());storageStatus('Rascunho local · banco SQL aguardando configuração.');
  }
  render();
+}
+function showLogin(message=''){
+ authenticated=false;clearTimeout(saveTimer);storageMode='loading';config=S.defaults();employees=[];result=null;lastSaved='';
+ document.body.classList.add('auth-loading');$('#loginScreen').hidden=false;$('#loginError').textContent=message;
+ $('#loginForm').elements.username.focus();
+}
+async function bootstrap(){
+ try{const response=await fetch('/api/auth.js',{cache:'no-store'});if(response.ok){authenticated=true;document.body.classList.remove('auth-loading');$('#loginScreen').hidden=true;render();await loadState();return;}
+  showLogin(response.status===503?'Acesso ainda não configurado no servidor.':'');
+ }catch{showLogin('Não foi possível verificar o acesso. Tente novamente.');}
 }
 function invalidate(){result=null;viewIndex=0;delete config.confirmedId;save();}
 function upgradeLegacyFpIds(){
@@ -206,6 +220,7 @@ function settingsPage(){
 function exportCSV(){if(!result?.rows.length)return;const safe=v=>{let x=String(v??'');if(/^[=+@-]/.test(x))x="'"+x;return '"'+x.replace(/"/g,'""')+'"';};const posts=result.extraPosts||[];const lines=[['GESTOR DE SUBCONJUNTO — VERSÃO PILOTO'],[statusText()],['Data',result.config.date,'FP',catalog().find(p=>p.id===result.config.product)?.fp],['Organização da linha',...(result.organizers||[]).map(p=>p.name)],['Horário','Evento',...result.positions.map(s=>s.id+' '+s.name+(s.slot>1?' '+s.slot:'')),...posts.map(s=>s.id+' '+s.name+(s.slot>1?' '+s.slot:'')+' (adicional)')],...result.rows.map(r=>[S.clock(r.start)+' — '+S.clock(r.end),r.label,...r.assign.map(id=>r.kind==='break'?'Intervalo':nameOf(id,result.employees)),...posts.map(p=>r.kind==='break'?'Intervalo':p.employeeId?nameOf(p.employeeId,result.employees):'Pendente')]),['Pendências'],...result.warnings.map(x=>[x]),...result.gaps.map(g=>[`${g.station}: sem cobertura ${S.clock(g.start)} — ${S.clock(g.end)}`])];const url=URL.createObjectURL(new Blob(['\uFEFF'+lines.map(l=>l.map(safe).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`escala-demonstrativa-${result.config.date}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function toggleMenu(open){$('#sidebar').classList.toggle('open',open);$('#navBackdrop').classList.toggle('open',open);$('#menuButton').setAttribute('aria-expanded',String(open));}
 function render(){
+ if(!authenticated)return;
  const route=location.hash.slice(1)||'overview';document.body.dataset.theme=theme;
  const page=pages.find(p=>p[0]===route)||pages[0];$('#breadcrumb').textContent=page[1];
  $('#nav').innerHTML=pages.map(([id,label,ico])=>`<a class="nav-link ${id===page[0]?'active':''}" href="#${id}" ${id===page[0]?'aria-current="page"':''}>${icon(ico)}${label}</a>`).join('')+`<div class="nav-extras"><button class="nav-link" data-action="theme">${icon('moon')}Tema ${theme==='dark'?'claro':'escuro'}</button></div>`;
@@ -231,6 +246,8 @@ document.addEventListener('click',e=>{
 });
 window.addEventListener('afterprint',()=>delete document.body.dataset.printMode);
 $('#menuButton').addEventListener('click',()=>toggleMenu(!$('#sidebar').classList.contains('open')));$('#navBackdrop').addEventListener('click',()=>toggleMenu(false));document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMenu(false);});
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button');button.disabled=true;$('#loginError').textContent='';try{const response=await fetch('/api/auth.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:form.elements.username.value.trim(),password:form.elements.password.value})});if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.error||'Não foi possível entrar.');}form.elements.password.value='';authenticated=true;document.body.classList.remove('auth-loading');$('#loginScreen').hidden=true;render();await loadState();}catch(error){$('#loginError').textContent=error.message;}finally{button.disabled=false;}});
+$('#logoutButton').addEventListener('click',async()=>{try{await fetch('/api/auth.js',{method:'DELETE'});}finally{showLogin();}});
 window.addEventListener('hashchange',()=>{viewIndex=0;render();window.scrollTo(0,0);});
 setInterval(()=>{const clock=$('#pilotClock');if(clock){const now=new Date();clock.textContent=`${now.toLocaleDateString('pt-BR')} · ${now.toLocaleTimeString('pt-BR')}`;}},1000);
-render();loadState();
+bootstrap();

@@ -10,8 +10,9 @@ Planejamento de uma linha de subconjuntos. Esta revisão parte do aplicativo exi
 - A montagem seleciona data, turno, FP e assistentes, permite posição inicial e fixação, gera escala com avisos de falta de cobertura e aceita postos adicionais com quantidade e observação.
 - Uma escala completa pode ser confirmada e consultada no Histórico. A confirmação aguarda resposta do banco SQL antes de mostrar sucesso.
 - Configurações permitem gerenciar setores e turnos, além de limpar dados com confirmação digitada.
+- O login inicial usa uma conta administradora, senha verificada por hash scrypt no servidor e sessão assinada em cookie HttpOnly com duração de oito horas. A API de dados exige sessão.
 
-**Esta revisão ainda não está apta a um piloto real.** Autenticação individual com perfis e auditoria atribuída a um usuário não estão implementadas. A proteção de implantação da Vercel mantém o ambiente privado, mas não equivale a controle de funções no aplicativo. Não remova essa proteção. A interface continua em JavaScript, e o PDF é gerado pela impressão do navegador. O fluxo integrado em navegador e banco de produção precisa de validação antes de publicação.
+**Esta revisão ainda não está apta a um piloto real.** Há apenas uma conta administradora; perfis individuais e auditoria atribuída a cada pessoa ainda não estão implementados. Mantenha a proteção de implantação da Vercel. A interface continua em JavaScript, e o PDF é gerado pela impressão do navegador. O fluxo integrado em navegador e banco SQL precisa de validação antes de publicação.
 
 ## Desenvolvimento local
 
@@ -24,6 +25,8 @@ npm run build
 npm start
 ```
 
+Para habilitar o login local, gere o hash com `node scripts/hash-password.js`, digite a senha na entrada padrão e finalize com EOF (Ctrl+D). Defina `PILOT_ADMIN_PASSWORD_HASH` com o resultado e `AUTH_SESSION_SECRET` com pelo menos 32 caracteres aleatórios no ambiente do servidor. Não salve a senha nem o segredo no repositório. Na Vercel, configure essas variáveis como sensíveis no ambiente desejado e faça um novo deploy. Sem elas, a API responde 503. O usuário inicial é `fernando`.
+
 Sem `DATABASE_URL`, o aplicativo salva somente um rascunho local. **Não confirme escalas locais como registros oficiais.** Nenhuma pessoa, FP ou escala fictícia é inserida automaticamente.
 
 ## Migração SQL, backup e restauração
@@ -34,7 +37,7 @@ Sem `DATABASE_URL`, o aplicativo salva somente um rascunho local. **Não confirm
 4. Para restaurar, interrompa gravações, restaure o backup/branch anterior e volte ao deploy compatível com aquele esquema. Não reverta apenas o código enquanto o banco recebe gravações de uma versão nova.
 5. Mantenha `DATABASE_URL` apenas no servidor, configurada como segredo da Vercel. Nunca copie a string de conexão para o frontend, logs ou repositório.
 
-`db/schema.sql` descreve a base anterior. `002_pilot_foundation.sql` amplia o esquema com `users`, `sectors`, `employee_skills`, `employee_restrictions`, `fps`, `fp_stations`, `shifts`, `schedules`, `schedule_stations`, `schedule_employees`, `schedule_organizers`, `settings` e `audit_logs`. O endpoint sincroniza os dados centrais com tabelas normalizadas, mantendo `app_settings` para compatibilidade. A estrutura de usuários e auditoria está preparada, mas ainda carece de provedor de identidade e aplicação de permissões no servidor.
+`db/schema.sql` descreve a base anterior. `002_pilot_foundation.sql` amplia o esquema com `users`, `sectors`, `employee_skills`, `employee_restrictions`, `fps`, `fp_stations`, `shifts`, `schedules`, `schedule_stations`, `schedule_employees`, `schedule_organizers`, `settings` e `audit_logs`. O endpoint sincroniza os dados centrais com tabelas normalizadas, mantendo `app_settings` para compatibilidade. A conta inicial é configurada por variáveis de ambiente; gestão de contas adicionais e auditoria atribuída seguem pendentes.
 
 ## Regras e limites
 

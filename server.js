@@ -6,9 +6,21 @@ const root = path.join(__dirname, 'dist');
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.mp4': 'video/mp4' };
 const port = Number(process.env.PORT || 3000);
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   let requested;
   try { requested = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { res.writeHead(400); return res.end(); }
+  if (requested === '/api/auth.js' || requested === '/api/state.js') {
+    res.status = code => { res.statusCode=code; return res; };
+    res.json = value => { res.setHeader('Content-Type','application/json; charset=utf-8');res.end(JSON.stringify(value));return res; };
+    try {
+      if (req.method === 'POST' || req.method === 'PUT') {
+        let body='';for await(const chunk of req){body+=chunk;if(body.length>2_000_000){res.status(413).json({error:'Dados muito grandes.'});return;}}
+        req.body=body;
+      }
+      await require(requested === '/api/auth.js' ? './api/auth' : './api/state')(req,res);
+    } catch { if(!res.headersSent)res.status(400).json({error:'Requisição inválida.'}); }
+    return;
+  }
   if (requested === '/') requested = '/index.html';
   const file = path.normalize(path.join(root, requested));
   if (!file.startsWith(root + path.sep) || requested.split('/').some(x => x.startsWith('.')) || !types[path.extname(file)]) { res.writeHead(404); return res.end('Não encontrado'); }

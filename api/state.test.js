@@ -2,6 +2,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
+const crypto = require('node:crypto');
+const auth = require('./auth-core');
+process.env.AUTH_SESSION_SECRET = 'test-secret-with-at-least-thirty-two-characters';
+process.env.PILOT_ADMIN_PASSWORD_HASH = `${crypto.randomBytes(16).toString('hex')}$${crypto.randomBytes(64).toString('hex')}`;
 
 const calls = [];
 function sql(strings, ...values) {
@@ -26,7 +30,7 @@ Module._load = originalLoad;
 
 async function request(method, body) {
   const response = { statusCode: 200, headers: {}, setHeader(key, value) { this.headers[key] = value; }, status(code) { this.statusCode = code; return this; }, json(data) { this.data = data; return this; } };
-  await handler({ method, body }, response);
+  await handler({ method, body, headers:{host:'localhost:3000',origin:'http://localhost:3000',cookie:auth.cookieOptions({headers:{}}).split(';')[0]} }, response);
   return response;
 }
 

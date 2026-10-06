@@ -1,5 +1,6 @@
 'use strict';
 const { neon } = require('@neondatabase/serverless');
+const { authorize } = require('./auth-core');
 
 const sectors = new Set(['Sala de máquinas', 'Linha de bolsa', 'Linha de Bolsas', 'Subconjunto', 'Embalagem final', 'Outros']);
 const stations = new Set(['20', '30', '40', '50', '60', '70']);
@@ -18,6 +19,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (!['GET', 'PUT'].includes(req.method)) return res.status(405).json({ error: 'Método inválido.' });
+  if (!authorize(req, res)) return;
   if (!configured()) return res.status(503).json({ error: 'Banco SQL ainda não configurado.' });
   try {
     const sql = connect();
