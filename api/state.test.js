@@ -44,6 +44,16 @@ test('SQL API starts empty and rejects invalid sector', async () => {
   assert.equal(bad.statusCode, 400);
 });
 
+test('presentation mode denies database reads and writes', async () => {
+  process.env.PILOT_PRESENTATION_MODE='1';
+  calls.length=0;
+  const read=await request('GET');
+  const write=await request('PUT',{config:{},employees:[]});
+  assert.equal(read.statusCode,503);assert.equal(write.statusCode,503);
+  assert.equal(read.data.mode,'presentation');assert.equal(calls.length,0);
+  delete process.env.PILOT_PRESENTATION_MODE;
+});
+
 test('SQL API persists employee sector, role and availability in one transaction', async () => {
   calls.length = 0;
   const employee = { id: 'd73c2b93-3cbc-4efb-927a-abbf8579efab', name: 'Ana Souza', sector: 'Sala de máquinas', role: 'Assistente', present: false, allowed: ['20', '30'], fixed: '', initial: '20' };

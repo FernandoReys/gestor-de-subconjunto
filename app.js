@@ -12,12 +12,13 @@ const defaultProducts=[];
 const pages=[['overview','Visão geral','grid'],['schedule','Montar escala','calendar'],['employees','Funcionários','users'],['fp','FPs','file'],['history','Histórico','clock'],['settings','Configurações','shield']];
 const initialSectors=['Sala de máquinas','Linha de Bolsas','Subconjunto','Embalagem final','Outros'];
 const sectors=()=>Array.isArray(config.sectors)?config.sectors:initialSectors;
-let config=S.defaults(), employees=[], result=null, viewIndex=0, theme='light', query='',fpFocus='',storageMode='loading',lastSaved='',saveTimer=null,saveQueue=Promise.resolve(),pendingOperation=null;
+let config=S.defaults(), employees=[], result=null, viewIndex=0, theme='light', query='',fpFocus='',storageMode='loading',lastSaved='',saveTimer=null,saveQueue=Promise.resolve(),pendingOperation=null,presentationMode=false;
 let authenticated=false;
 const STORAGE='gestor-subconjunto-v4';
 try{localStorage.removeItem('gestor-subconjunto-v2');theme=localStorage.getItem('gestor-theme')==='dark'?'dark':'light';}catch{}
 const payload=()=>({config,employees,generated:!!result,...(pendingOperation?{operation:pendingOperation}:{})});
 function storageStatus(message){const el=$('#storageStatus');if(el)el.textContent=message;}
+function localStatus(){return presentationMode?'Modo apresentação · dados salvos apenas neste navegador.':'Rascunho local · banco SQL aguardando configuração.';}
 async function persist(){
  const latest=JSON.stringify(payload());if(latest===lastSaved)return;
  storageStatus('Salvando no banco SQL…');
@@ -33,7 +34,7 @@ function save(){
  try{localStorage.setItem('gestor-theme',theme);}catch{}
  const data=JSON.stringify(payload());if(data===lastSaved)return;
  if(storageMode==='local'){
-  try{localStorage.setItem(STORAGE,JSON.stringify({version:4,...payload()}));lastSaved=data;storageStatus('Rascunho local · banco SQL aguardando configuração.');}
+  try{localStorage.setItem(STORAGE,JSON.stringify({version:4,...payload()}));lastSaved=data;storageStatus(localStatus());}
   catch{storageStatus('Salvamento local indisponível.');}
   return;
  }
@@ -43,6 +44,7 @@ async function loadState(){
  try{
   const response=await fetch('/api/state.js',{cache:'no-store'});
   if(response.status===401){showLogin('Sua sessão expirou. Entre novamente.');return;}
+  if(response.status===503){const detail=await response.json().catch(()=>({}));presentationMode=detail.mode==='presentation';}
   if(!response.ok)throw new Error('Banco não configurado');
   const saved=await response.json();config={...S.defaults(),...saved.config};employees=saved.employees||[];
   const upgraded=upgradeLegacyFpIds();
@@ -52,7 +54,7 @@ async function loadState(){
   try{const saved=JSON.parse(localStorage.getItem(STORAGE)||'null');if(saved?.version===4&&Array.isArray(saved.employees)){
    config={...config,...saved.config};employees=saved.employees;if(saved.generated&&employees.length&&catalog().length)result=buildResult();
   }}catch{}
-  storageMode='local';lastSaved=JSON.stringify(payload());storageStatus('Rascunho local · banco SQL aguardando configuração.');
+  storageMode='local';lastSaved=JSON.stringify(payload());storageStatus(localStatus());
  }
  render();
 }

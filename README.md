@@ -27,6 +27,8 @@ npm start
 
 Para habilitar o login local, gere o hash com `node scripts/hash-password.js`, digite a senha na entrada padrão e finalize com EOF (Ctrl+D). Defina `PILOT_ADMIN_PASSWORD_HASH` com o resultado e `AUTH_SESSION_SECRET` com pelo menos 32 caracteres aleatórios no ambiente do servidor. Não salve a senha nem o segredo no repositório. Na Vercel, configure essas variáveis como sensíveis no ambiente desejado e faça um novo deploy. Sem elas, a API responde 503. O usuário inicial é `fernando`.
 
+Para uma apresentação pública sem conexão ao banco, defina `PILOT_PRESENTATION_MODE=1` no ambiente de produção. Nesse modo a API de dados recusa leituras e gravações; o navegador usa apenas um rascunho local e informa essa limitação na tela. Não use o modo de apresentação para cadastrar dados que precisem aparecer em outro dispositivo.
+
 Sem `DATABASE_URL`, o aplicativo salva somente um rascunho local. **Não confirme escalas locais como registros oficiais.** Nenhuma pessoa, FP ou escala fictícia é inserida automaticamente.
 
 ## Migração SQL, backup e restauração
