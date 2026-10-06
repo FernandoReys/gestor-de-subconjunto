@@ -12,10 +12,10 @@ const defaultProducts=[];
 const pages=[['overview','Visão geral','grid'],['schedule','Montar escala','calendar'],['employees','Funcionários','users'],['fp','FPs','file'],['history','Histórico','clock'],['settings','Configurações','shield']];
 const initialSectors=['Sala de máquinas','Linha de Bolsas','Subconjunto','Embalagem final','Outros'];
 const sectors=()=>Array.isArray(config.sectors)?config.sectors:initialSectors;
-let config=S.defaults(), employees=[], result=null, viewIndex=0, theme='dark', query='',fpFocus='',storageMode='loading',lastSaved='',saveTimer=null,saveQueue=Promise.resolve(),pendingOperation=null;
+let config=S.defaults(), employees=[], result=null, viewIndex=0, theme='light', query='',fpFocus='',storageMode='loading',lastSaved='',saveTimer=null,saveQueue=Promise.resolve(),pendingOperation=null;
 let authenticated=false;
 const STORAGE='gestor-subconjunto-v4';
-try{localStorage.removeItem('gestor-subconjunto-v2');theme=localStorage.getItem('gestor-theme')==='light'?'light':'dark';}catch{}
+try{localStorage.removeItem('gestor-subconjunto-v2');theme=localStorage.getItem('gestor-theme')==='dark'?'dark':'light';}catch{}
 const payload=()=>({config,employees,generated:!!result,...(pendingOperation?{operation:pendingOperation}:{})});
 function storageStatus(message){const el=$('#storageStatus');if(el)el.textContent=message;}
 async function persist(){

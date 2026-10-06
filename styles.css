@@ -3382,7 +3382,11 @@ body[data-theme="dark"] .settings-card p { color: #a5c0d4; }
 
 /* Pilot planning layout: readable names and status at a glance. */
 .prototype-tag{letter-spacing:.06em}
-.pilot-today{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:24px 28px;margin-bottom:20px;background:var(--card,#10243a);border:1px solid var(--border,#2c4258);border-radius:18px}
+.pilot-today{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:24px 28px;margin-bottom:20px;background:#fff;border:1px solid var(--border,#e1e9f0);border-radius:18px}
+.pilot-today h2{color:#163b5a}.pilot-today p{color:#4d6578}.pilot-today .eyebrow{color:#3579ad}
+body[data-theme="dark"] .pilot-today{background:#10243a;border-color:#20364b}
+body[data-theme="dark"] .pilot-today h2{color:#c7d9e9}
+body[data-theme="dark"] .pilot-today p{color:#a8c1d5}
 .pilot-today h2{font-size:clamp(20px,2.2vw,30px);margin:8px 0}
 .pilot-today p{margin:6px 0;overflow-wrap:anywhere}
 .pilot-line{padding:24px;margin-top:20px}
@@ -3399,9 +3403,14 @@ body[data-theme="dark"] .settings-card p { color: #a5c0d4; }
 .settings-card .actions{display:flex;flex-wrap:wrap;gap:10px}
 .schedule-table td,.schedule-table th,.table-scroll td,.table-scroll th{white-space:normal;overflow-wrap:anywhere;word-break:normal;min-width:130px;vertical-align:top}
 .schedule-table .time-cell{min-width:160px}.table-person{min-width:190px;align-items:flex-start}.table-person strong{white-space:normal;overflow-wrap:anywhere;line-height:1.4}.table-person small{display:block}
-.station-select{min-width:0}.station-select b,.station-select small{white-space:normal;overflow-wrap:anywhere}
+.station-select{min-width:0;min-height:158px;padding:18px}.station-select b,.station-select small{white-space:normal;overflow-wrap:anywhere}
+.station-select b{font-size:16px;line-height:1.4}
+.station-select small{font-size:12px;line-height:1.4}
+.station-select select{height:48px;min-height:48px;padding:10px 14px;font-size:14px;line-height:1.35}
+.station-select .field{margin-bottom:8px}
+.pilot-station{min-height:108px;padding:18px}.pilot-station strong{font-size:16px}
 @media(max-width:1000px){.pilot-line-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.history-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:640px){.pilot-line-grid,.history-filters{grid-template-columns:1fr}.pilot-today,.history-item{flex-direction:column}.pilot-line{padding:16px}.fp-station-row{grid-template-columns:1fr 90px}}
+@media(max-width:640px){.pilot-line-grid,.history-filters{grid-template-columns:1fr}.pilot-today,.history-item{flex-direction:column}.pilot-line{padding:16px}.fp-station-row{grid-template-columns:1fr 90px}.station-select{min-height:0;padding:16px}.station-select select{height:48px}}
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   body[data-print-mode="history"] main,
