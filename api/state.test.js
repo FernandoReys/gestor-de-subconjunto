@@ -9,9 +9,13 @@ function sql(strings, ...values) {
   calls.push(query);
   if (query.text.startsWith('SELECT config')) return Promise.resolve([]);
   if (query.text.startsWith('SELECT * FROM employees')) return Promise.resolve([]);
+  if (query.text.startsWith('SELECT employee_id')) return Promise.resolve([]);
+  if (query.text.startsWith('SELECT * FROM fps')) return Promise.resolve([]);
+  if (query.text.startsWith('SELECT * FROM fp_stations')) return Promise.resolve([]);
+  if (query.text.startsWith('SELECT * FROM schedules')) return Promise.resolve([]);
   return query;
 }
-sql.transaction = async queries => { assert.equal(queries.length, 3); return []; };
+sql.transaction = async queries => { assert.equal(queries.length, 17); return []; };
 const originalLoad = Module._load;
 Module._load = function (id, ...rest) {
   if (id === '@neondatabase/serverless') return { neon: () => sql };
@@ -42,9 +46,9 @@ test('SQL API persists employee sector, role and availability in one transaction
   const response = await request('PUT', { config: { start: '14:00' }, generated: false, employees: [employee] });
   assert.equal(response.statusCode, 200);
   assert.equal(response.data.saved, true);
-  assert.match(calls[2].values[0], /"sector":"Sala de máquinas"/);
-  assert.match(calls[2].values[0], /"present":false/);
-  assert.match(calls[2].values[0], /"role":"Assistente"/);
+  assert.match(calls[5].values[0], /"sector":"Sala de máquinas"/);
+  assert.match(calls[5].values[0], /"present":false/);
+  assert.match(calls[5].values[0], /"role":"Assistente"/);
 });
 
 test('SQL API rejects duplicate extra assignments and invalid organizers', async () => {
