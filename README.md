@@ -1,35 +1,48 @@
-# Gestor de Subconjunto
+# Gestor de Subconjunto — evolução piloto
 
-Protótipo privado para planejar uma linha com seis postos: 20 BSD, 30 Clampe, 40 Preckoff, 50 Y, 60 Agulha e 70 Contagem. A abertura usa vídeo ilustrativo. As placas no vídeo e os tipos provisórios não substituem uma FP aprovada.
+Planejamento de uma linha de subconjuntos. Esta revisão parte do aplicativo existente e mantém os seis processos 20 BSD, 30 Clampe, 40 Preckoff, 50 Y, 60 Agulha e 70 Contagem. É um projeto independente para avaliação interna; não substitui uma FP aprovada nem sistemas oficiais.
 
-## Executar
+## Estado desta revisão
+
+- Visão Geral mostra data/hora, FP, produto, turno, responsável, disponibilidade e cobertura por posição.
+- Funcionários têm matrícula opcional, categoria, setor, presença, habilitações, restrições por posto e observações.
+- FPs começam vazias. É possível criar, editar, duplicar, arquivar e excluir uma FP sem histórico; cada FP informa os postos e quantas pessoas são necessárias.
+- A montagem seleciona data, turno, FP e assistentes, permite posição inicial e fixação, gera escala com avisos de falta de cobertura e aceita postos adicionais com quantidade e observação.
+- Uma escala completa pode ser confirmada e consultada no Histórico. A confirmação aguarda resposta do banco SQL antes de mostrar sucesso.
+- Configurações permitem gerenciar setores e turnos, além de limpar dados com confirmação digitada.
+- O login inicial usa uma conta administradora, senha verificada por hash scrypt no servidor e sessão assinada em cookie HttpOnly com duração de oito horas. A API de dados exige sessão.
+
+**Esta revisão ainda não está apta a um piloto real.** Há apenas uma conta administradora; perfis individuais e auditoria atribuída a cada pessoa ainda não estão implementados. Mantenha a proteção de implantação da Vercel. A interface continua em JavaScript, e o PDF é gerado pela impressão do navegador. O fluxo integrado em navegador e banco SQL precisa de validação antes de publicação.
+
+## Desenvolvimento local
 
 Node.js 22 ou superior:
 
 ```sh
 npm ci
+npm test
 npm run build
 npm start
-npm test
 ```
 
-O servidor local serve `dist/`. Sem banco configurado, a interface inicia vazia e guarda um rascunho no navegador. Cadastros antigos da demonstração não são importados. Limpar os dados do site remove o rascunho local.
+Para habilitar o login local, gere o hash com `node scripts/hash-password.js`, digite a senha na entrada padrão e finalize com EOF (Ctrl+D). Defina `PILOT_ADMIN_PASSWORD_HASH` com o resultado e `AUTH_SESSION_SECRET` com pelo menos 32 caracteres aleatórios no ambiente do servidor. Não salve a senha nem o segredo no repositório. Na Vercel, configure essas variáveis como sensíveis no ambiente desejado e faça um novo deploy. Sem elas, a API responde 503. O usuário inicial é `fernando`.
 
-## Banco PostgreSQL
+Para uma apresentação pública sem conexão ao banco, defina `PILOT_PRESENTATION_MODE=1` no ambiente de produção. Nesse modo a API de dados recusa leituras e gravações; o navegador usa apenas um rascunho local e informa essa limitação na tela. Não use o modo de apresentação para cadastrar dados que precisem aparecer em outro dispositivo.
 
-1. Crie um **banco novo e vazio** em PostgreSQL ou Neon. Não execute a migração sobre um banco operacional existente sem revisão.
-2. Execute [`db/schema.sql`](db/schema.sql) nesse banco. O esquema cria `employees` e `app_settings` sem inserir pessoas, escalas ou dados fictícios. Em um banco criado pela versão anterior, execute uma vez [`db/migrations/001_employee_role.sql`](db/migrations/001_employee_role.sql) antes de publicar o código novo; a migração preserva os cadastros existentes e classifica os anteriores como Operador.
-3. Configure `DATABASE_URL` como variável de ambiente **somente no servidor** no projeto Vercel. Jamais coloque a URL no repositório ou no JavaScript servido ao navegador.
-4. Implante novamente. `/api/state.js` passa a ler e salvar funcionários, setor, presença, restrições e configuração do turno em transação. O rodízio é calculado no navegador a partir desses dados; o estado de geração é persistido para recalcular ao reabrir.
+Sem `DATABASE_URL`, o aplicativo salva somente um rascunho local. **Não confirme escalas locais como registros oficiais.** Nenhuma pessoa, FP ou escala fictícia é inserida automaticamente.
 
-Os setores aceitos são Sala de máquinas, Linha de bolsa, Subconjunto e Embalagem final. A categoria é **Operador** ou **Assistente**. Só operadores marcados **Ativo na linha** entram nos postos; assistentes ativos podem organizar o turno. Postos adicionais são atribuídos manualmente a um operador, que sai do rodízio principal. O catálogo de FPs e essas escolhas ficam em `app_settings.config` (JSONB). O cadastro inicial de pessoas fica vazio. O banco é a origem dos dados quando configurado; rascunhos locais anteriores não são enviados automaticamente.
+## Migração SQL, backup e restauração
 
-Em Configurações, **Limpar escalas** zera a distribuição e as escolhas do turno, mantendo pessoas e FPs; **Limpar funcionários** apaga os cadastros e a escala, mantendo FPs. Ambas as ações exigem digitar a palavra de confirmação. Abrir a página não altera dados.
+1. Antes de qualquer alteração no Neon/PostgreSQL, crie um backup consistente ou um branch do banco e registre o horário e a origem. Confira contagens de `employees` e `app_settings`.
+2. No banco existente, aplique `db/migrations/001_employee_role.sql` se ainda não foi aplicada; depois execute `db/migrations/002_pilot_foundation.sql` em transação. A segunda migração cria tabelas relacionais e preserva os dados anteriores. Faça uma revisão das FPs legadas com identificadores não UUID antes de habilitar o novo código.
+3. Verifique índices e chaves estrangeiras, execute leituras e escrita reversível em um banco de prévia, e só então publique a aplicação.
+4. Para restaurar, interrompa gravações, restaure o backup/branch anterior e volte ao deploy compatível com aquele esquema. Não reverta apenas o código enquanto o banco recebe gravações de uma versão nova.
+5. Mantenha `DATABASE_URL` apenas no servidor, configurada como segredo da Vercel. Nunca copie a string de conexão para o frontend, logs ou repositório.
 
-O projeto Vercel deve manter **Vercel Authentication** ativo em produção e prévias. O domínio padrão já é protegido; não acrescente domínio personalizado sem rever a proteção. A entrada visual da abertura não autentica ninguém. A API usa essa proteção de implantação, então não exponha suas rotas em outro host sem autenticação equivalente.
+`db/schema.sql` descreve a base anterior. `002_pilot_foundation.sql` amplia o esquema com `users`, `sectors`, `employee_skills`, `employee_restrictions`, `fps`, `fp_stations`, `shifts`, `schedules`, `schedule_stations`, `schedule_employees`, `schedule_organizers`, `settings` e `audit_logs`. O endpoint sincroniza os dados centrais com tabelas normalizadas, mantendo `app_settings` para compatibilidade. A conta inicial é configurada por variáveis de ambiente; gestão de contas adicionais e auditoria atribuída seguem pendentes.
 
-## Limites
+## Regras e limites
 
-O gerador respeita postos permitidos, fixos, pausas, limite de 60 minutos efetivos em Preckoff, 120 em Contagem e proibição de retorno ao posto após saída no turno. Pode deixar lacunas quando a equipe é insuficiente. As opções de tipo de subconjunto são provisórias, sem FP técnica cadastrada. CSV e impressão mostram uma simulação para revisão, sem liberar produção.
+O gerador considera apenas operadores ativos e habilitados; ausentes e assistentes ficam fora dos postos. Fixações incompatíveis e seleções iniciais duplicadas geram erro. A mesma pessoa não ocupa duas posições no mesmo período. Os limites de permanência e pausas continuam presentes, e falta de equipe gera pendências em vez de uma escala inventada. Postos adicionais são atribuições manuais durante o turno. Para FP com mais de uma posição em Preckoff, a lista horária separada é ocultada; use a escala principal.
 
-`npm test` cobre o algoritmo de escala. O banco exige provisionamento e a variável `DATABASE_URL` para teste integrado e sincronização entre aparelhos.
+Ações de limpeza são irreversíveis no aplicativo e exigem digitação explícita. O histórico preserva nomes e posições em um snapshot, inclusive quando o cadastro de um funcionário for removido. A auditoria com identificação do autor e os papéis Administrador, Assistente e Visualização devem ser concluídos antes de uso com dados reais.

@@ -42,3 +42,28 @@ test('Assistente e operador reservado em posto adicional não entram no rodízio
  const preckoff=S.generatePreckoff(config,people);
  assert.ok(preckoff.eligible.every(id=>id!==people[0].id&&id!==extra.id));
 });
+test('FP com duas pessoas no preckoff exige ambas as posições e não repete operador ao mesmo tempo',()=>{
+ const people=[...withRelief(),...Array.from({length:5},(_,i)=>({id:'extra-'+i,name:'Extra '+i,role:'Operador',active:true,present:true,allowed:S.stations.map(s=>s.id),fixed:'',initial:''}))];
+ const config={...S.defaults(),fpStations:S.stations.map(s=>({id:s.id,requiredCount:s.id==='40'?2:1}))};
+ const plan=S.generate(config,people);
+ assert.equal(plan.positions.length,7);
+ assert.deepEqual(plan.errors,[]);
+ for(const row of plan.rows.filter(r=>r.kind==='work'))assert.equal(new Set(row.assign.filter(Boolean)).size,row.assign.filter(Boolean).length);
+});
+test('Fixação por posição não escala ausentes ou pessoas com restrição e permanece após rodízio',()=>{
+ const people=withRelief(),id=people[0].id,config={...S.defaults(),locks:{'30-1':id}};
+ const plan=S.generate(config,people);
+ assert.deepEqual(plan.errors,[]);
+ assert.ok(plan.rows.filter(r=>r.kind==='work').every(r=>r.assign[1]===id));
+ people[0].present=false;
+ assert.match(S.generate(config,people).errors.join(' '),/ausente/);
+ people[0].present=true;people[0].restrictions=[{stationId:'30',reason:'Restrição temporária'}];
+ assert.match(S.generate(config,people).errors.join(' '),/sem habilitação/);
+});
+test('FP de doze posições distribui vinte operadores sem duplicar pessoa no mesmo período',()=>{
+ const config={...S.defaults(),fpStations:S.stations.map(s=>({id:s.id,requiredCount:2}))};
+ const people=Array.from({length:20},(_,i)=>({id:`p-${i}`,name:`Pessoa ${i}`,role:'Operador',active:true,present:true,allowed:S.stations.map(s=>s.id),fixed:'',initial:''}));
+ const plan=S.generate(config,people);
+ assert.deepEqual(plan.errors,[]);assert.equal(plan.positions.length,12);
+ for(const row of plan.rows.filter(r=>r.kind==='work'))assert.equal(new Set(row.assign.filter(Boolean)).size,row.assign.filter(Boolean).length);
+});
