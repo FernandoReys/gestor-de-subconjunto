@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const S=require('./scheduler');
+const S=require('../src/client/scheduler');
 const withRelief=()=>[...S.sampleEmployees(),...Array.from({length:6},(_,i)=>({id:'relief-'+i,name:'Suplente '+i,active:true,present:true,noGlue:false,allowed:S.stations.map(s=>s.id),fixed:'',initial:''}))];
 function verifyPlan(plan,people){
  assert.deepEqual(plan.errors,[]);

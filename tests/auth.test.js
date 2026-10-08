@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');
-const auth=require('./auth'),state=require('./state');
+const auth=require('../api/auth'),state=require('../api/state');
 const salt=crypto.randomBytes(16);
 process.env.PILOT_ADMIN_PASSWORD_HASH=`${salt.toString('hex')}$${crypto.scryptSync('example-test-password',salt,64).toString('hex')}`;
 process.env.AUTH_SESSION_SECRET='test-secret-with-at-least-thirty-two-characters';

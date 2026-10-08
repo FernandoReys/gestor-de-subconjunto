@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Module = require('node:module');
 const crypto = require('node:crypto');
-const auth = require('./auth-core');
+const auth = require('../api/auth-core');
 process.env.AUTH_SESSION_SECRET = 'test-secret-with-at-least-thirty-two-characters';
 process.env.PILOT_ADMIN_PASSWORD_HASH = `${crypto.randomBytes(16).toString('hex')}$${crypto.randomBytes(64).toString('hex')}`;
 
@@ -25,7 +25,7 @@ Module._load = function (id, ...rest) {
   if (id === '@neondatabase/serverless') return { neon: () => sql };
   return originalLoad.call(this, id, ...rest);
 };
-const handler = require('./state');
+const handler = require('../api/state');
 Module._load = originalLoad;
 
 async function request(method, body) {

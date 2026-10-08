@@ -2,6 +2,20 @@
 
 Planejamento de uma linha de subconjuntos. Esta revisão parte do aplicativo existente e mantém os seis processos 20 BSD, 30 Clampe, 40 Preckoff, 50 Y, 60 Agulha e 70 Contagem. É um projeto independente para avaliação interna; não substitui uma FP aprovada nem sistemas oficiais.
 
+## Organização
+
+| Pasta | Conteúdo |
+| --- | --- |
+| `src/client/` | HTML, CSS, interface e regras de escala executadas no navegador |
+| `public/assets/` | Imagens usadas pela interface e copiadas para `dist/` |
+| `api/` | Endpoints de autenticação e persistência da Vercel |
+| `db/` | Esquema e migrações PostgreSQL |
+| `tests/` | Testes da escala e dos endpoints |
+| `scripts/` | Compilação estática e utilitário de senha |
+| `media/` | Materiais originais que não são servidos pela aplicação |
+
+`server.js` serve o resultado de `npm run build` para desenvolvimento local. `vercel.json` mantém os endpoints em `api/`, e `dist/` é gerado e ignorado pelo Git.
+
 ## Estado desta revisão
 
 - Visão Geral mostra data/hora, FP, produto, turno, responsável, disponibilidade e cobertura por posição.
