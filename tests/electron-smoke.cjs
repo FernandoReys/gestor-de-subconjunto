@@ -27,6 +27,7 @@ app.on('browser-window-created', (_event, win) => {
         return {days:document.querySelectorAll('.agenda-day').length, title:document.querySelector('#app h1').textContent, module:!!window.GestorAgenda, button:!!document.querySelector('#agendaConnect')};
       })()`);
       assert.equal(calendar.days,7);assert.equal(calendar.title,'Agenda de produção');assert.equal(calendar.module,true);assert.equal(calendar.button,true);
+      await win.webContents.executeJavaScript(`new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
       fs.mkdirSync(path.join(__dirname,'../verification'),{recursive:true});
       fs.writeFileSync(path.join(__dirname,'../verification/agenda-windows.png'),(await win.webContents.capturePage()).toPNG());
       console.log('Weekly production calendar renders seven days and Google connection controls: OK');
