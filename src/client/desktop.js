@@ -3,7 +3,7 @@ if (window.gestorDesktop) {
   const bridge = window.gestorDesktop;
   const originalFetch = window.fetch.bind(window);
   window.fetch = async (url, options = {}) => {
-    if (!['/api/auth.js', '/api/state.js'].includes(url)) return originalFetch(url, options);
+    if (!['/api/auth.js', '/api/state.js', '/api/calendar-export.js'].includes(url)) return originalFetch(url, options);
     const result = await bridge.request(url, { method: options.method || 'GET', body: options.body });
     return new Response(JSON.stringify(result.data), { status: result.status, headers: { 'Content-Type': 'application/json' } });
   };

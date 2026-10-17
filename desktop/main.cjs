@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, protocol, net, ipcMain, safeStorage, dialog, session } = require('electron');
+const { app, BrowserWindow, protocol, net, ipcMain, safeStorage, dialog, session, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -8,7 +8,7 @@ const { Sync } = require('./sync.cjs');
 const { validateServer } = require('./config.cjs');
 protocol.registerSchemesAsPrivileged([{ scheme: 'gestor', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 if (!app.requestSingleInstanceLock()) app.quit();
-let win, store, sync, server, credential;
+let win, store, sync, server, credential, calendarSync, calendarTimer;
 const reply = (status, data) => ({ status, data });
 function active() { return credential && credential.expires > Date.now() && credential.server === server; }
 function saveCredential(value) {
@@ -44,6 +44,17 @@ async function request(endpoint, options = {}) {
     await sync.run();
     return reply(200, data);
   }
+  if(endpoint==='/api/calendar-export.js'){
+    if(!active())return reply(401,{error:'Entre no Gestor para conectar o Google Agenda.'});
+    if(!['GET','POST'].includes(method))return reply(405,{});
+    const body=options.body?JSON.parse(options.body):undefined;
+    if(['publish','resolve'].includes(body?.action)){
+      await sync.run();if(store.head()||store.get('conflict'))return reply(409,{error:'Sincronize e resolva as versões do Gestor antes de enviar ao Google.'});
+    }
+    const {response,data}=await remote(endpoint,method,body);
+    if(response.ok&&data.url){const target=new URL(data.url);if(target.protocol!=='https:'||!['connect.vercel.com','accounts.google.com','vercel.com'].includes(target.hostname))throw new Error('Endereço de autorização não permitido.');await shell.openExternal(target.href);}
+    return reply(response.status,data);
+  }
   if (endpoint !== '/api/state.js') throw new Error('Endpoint não permitido.');
   if (!active()) return reply(401, { error: 'Sessão expirada. Autentique novamente online.' });
   if (method === 'GET') return reply(200, store.get('state') || { config: {}, employees: [], generated: false });
@@ -67,7 +78,8 @@ app.whenReady().then(async () => {
     const { response, data } = await remote('/api/desktop-sync.js' + (method === 'GET' ? '?cursor=' + cursor : ''), method, body);
     if (!response.ok && !(response.status === 409 && data.conflict && data.state)) { const e = new Error(data.error || 'Falha na sincronização.'); e.status = response.status; throw e; }
     return data;
-  }, publish);
+  }, value=>{publish();if(value.connection==='online'&&active())void calendarSync?.run();});
+  calendarSync=new (require('./calendar-sync.cjs').CalendarSync)(store,remote);
   protocol.handle('gestor', async request => {
     const url = new URL(request.url);
     const relative = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
@@ -80,6 +92,7 @@ app.whenReady().then(async () => {
     return new Response(response.body, { status: response.status, headers });
   });
   handle('desktop:request', request);
+  handle('desktop:calendar-sync',async()=>{if(!active())throw new Error('Entre novamente no Gestor.');await sync.run();if(store.head()||store.get('conflict'))throw new Error('Há alterações pendentes ou conflito no Gestor.');await calendarSync.run();if(calendarSync.error)throw new Error(calendarSync.error);return true;});
   handle('desktop:status', () => ({ ...visibleStatus(), server }));
   handle('desktop:retry', async () => { await sync.run(); return visibleStatus(); });
   handle('desktop:resolve', (choice, revision) => { if (!active()) throw new Error('Sessão expirada.'); store.resolve(choice, revision); publish(); return true; });
@@ -114,7 +127,8 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
   await win.loadURL('gestor://app/');
   sync.start();
+  calendarTimer=setInterval(()=>{if(active())void calendarSync.run();},30000);
 });
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { sync?.stop(); });
+app.on('before-quit', () => { sync?.stop();clearInterval(calendarTimer); });

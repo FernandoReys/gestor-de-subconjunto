@@ -9,7 +9,7 @@ const port = Number(process.env.PORT || 3000);
 const server = http.createServer(async (req, res) => {
   let requested;
   try { requested = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { res.writeHead(400); return res.end(); }
-  if (requested === '/api/auth.js' || requested === '/api/state.js' || requested === '/api/desktop-sync.js') {
+  if (requested === '/api/auth.js' || requested === '/api/state.js' || requested === '/api/desktop-sync.js' || requested === '/api/calendar-export.js') {
     res.status = code => { res.statusCode=code; return res; };
     res.json = value => { res.setHeader('Content-Type','application/json; charset=utf-8');res.end(JSON.stringify(value));return res; };
     try {
@@ -17,7 +17,7 @@ const server = http.createServer(async (req, res) => {
         let body='';for await(const chunk of req){body+=chunk;if(body.length>2_000_000){res.status(413).json({error:'Dados muito grandes.'});return;}}
         req.body=body;
       }
-      await require(requested === '/api/auth.js' ? './api/auth' : requested === '/api/desktop-sync.js' ? './api/desktop-sync' : './api/state')(req,res);
+      await require(requested === '/api/auth.js' ? './api/auth' : requested === '/api/calendar-export.js' ? './api/calendar-export' : requested === '/api/desktop-sync.js' ? './api/desktop-sync' : './api/state')(req,res);
     } catch { if(!res.headersSent)res.status(400).json({error:'Requisição inválida.'}); }
     return;
   }

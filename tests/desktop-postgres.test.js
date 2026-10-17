@@ -25,3 +25,7 @@ test('real PostgreSQL migration, CAS, idempotency, audit and deletions', async (
     assert.equal(concurrent.filter(x => x.conflict).length, 1);
   } finally { await db.close(); }
 });
+
+test('Google export migration is repeatable and permits only one active lease per event', async () => {
+ const db=new PGlite();try{const migration=fs.readFileSync('db/migrations/004_production_agenda_google.sql','utf8');await db.exec(migration);await db.exec(migration);const id=randomUUID();await db.query('INSERT INTO desktop_calendar_exports(author_id,calendar_id,entry_id,event_id) VALUES($1,$2,$3,$4)', ['fernando','test-calendar',id,'gestor0123']);const claim=async()=>db.query("UPDATE desktop_calendar_exports SET lease_id=$1::uuid,lease_until=now()+interval '60 seconds' WHERE author_id='fernando' AND calendar_id='test-calendar' AND entry_id=$2::uuid AND (lease_until IS NULL OR lease_until<now()) RETURNING entry_id",[randomUUID(),id]);const results=await Promise.all([claim(),claim()]);assert.equal(results.filter(x=>x.rows.length).length,1);}finally{await db.close();}
+});

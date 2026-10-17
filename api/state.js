@@ -45,6 +45,7 @@ module.exports = async function handler(req, res) {
     const names = new Set();
     const registrations = new Set();
     const config = body.config;
+    try { require('../src/client/agenda.js').validate(config.productionAgenda||[]); } catch(error) { return res.status(400).json({error:error.message}); }
     if(body.operation!==undefined&&body.operation!=='clearSchedules')return res.status(400).json({error:'Operação inválida.'});
     const shifts=config.shifts||[];
     if(!Array.isArray(shifts)||shifts.length>20||new Set(shifts.map(x=>x?.name)).size!==shifts.length||shifts.some(x=>!x||typeof x.name!=='string'||!x.name.trim()||x.name.length>40||!/^\d{2}:\d{2}$/.test(x.start)||!/^\d{2}:\d{2}$/.test(x.end)||x.end<=x.start))return res.status(400).json({error:'Revise os turnos.'});
