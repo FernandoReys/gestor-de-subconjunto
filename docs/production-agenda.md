@@ -30,6 +30,10 @@ A integração só estará operacional após esse cadastro e autorização. Até
 
 ## Validação
 
+Em 17/10/2026, os 34 testes passaram localmente e no runner Windows. O teste real do Electron confirmou SQLite, isolamento e renderização dos sete dias. O build NSIS 2.1.0 foi concluído, com instalador, SHA256SUMS.txt e captura de tela publicados no [artefato do Actions](https://github.com/FernandoReys/gestor-de-subconjunto/actions/runs/39079004629/artifacts/12117523534), retido por 30 dias. O executável de teste não possui assinatura digital.
+
+A migração 004 foi aplicada somente à branch Neon `windows-desktop-test`; a branch principal do Git e o banco de produção não foram alterados.
+
 Testes cobrem datas inválidas, semana/mês/ano, turno noturno, sobreposição de linha, persistência/fila offline, privacidade do payload, ID idempotente, edições concorrentes no Google, exclusão remota e autenticação do endpoint. O smoke Windows confere a renderização de sete dias e os controles da integração, com captura `agenda-windows.png` no artefato.
 
 Ainda pendente: consentimento Google real e envio/alteração/cancelamento de um evento no calendário escolhido, além de teste manual da agenda no computador do usuário. A política de 8 horas offline e a autenticação administrativa compartilhada permanecem nesta versão de teste.
