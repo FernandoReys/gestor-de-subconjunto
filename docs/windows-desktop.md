@@ -67,3 +67,12 @@ Pendente para homologação:
 - O merge manual assistido é escolha de uma versão inteira; para combinar dados, compare os snapshots e ajuste antes de selecionar a local. Backups mantêm ambas as versões, mas não há editor de merge por campo.
 
 Não é uma liberação automática para produção. A entrega de código e do instalador deve ser acompanhada das evidências da execução Actions e das validações ainda pendentes.
+
+## Evidências da execução em 17/10/2026
+
+- Commit de implementação: `cb317b51dbad671eaf7a5d199b3d43bb164020ca`.
+- [GitHub Actions Windows Desktop #1](https://github.com/FernandoReys/gestor-de-subconjunto/actions/runs/39074277150): **sucesso**. Os 24 testes passaram no runner Windows; smoke Electron real passou; NSIS gerado e SHA256 emitido. Assinatura verificada como `NotSigned`, conforme esperado sem certificado.
+- [Baixar artefato Windows x64](https://github.com/FernandoReys/gestor-de-subconjunto/actions/runs/39074277150/artifacts/12116840852): ZIP de aproximadamente 105 MB, contém `Gestor-de-Subconjunto-2.0.0-Setup.exe` e `SHA256SUMS.txt`, expira em 16/11/2026. Requer acesso ao GitHub.
+- Neon: criada a branch isolada `windows-desktop-test` (`br-cold-sun-b4vrukpl`) no projeto `gestor-de-subconjunto` (`silent-block-63843978`). Migração 003 aplicada **somente nessa branch**. Teste no Neon real de primeira revisão, reenvio idempotente e conflito de revisão passou; fixtures foram revertidas por subtransação. Conferência final: revisão `0`, estado vazio, histórico com `0` linhas. Produção não foi modificada.
+- Backend HTTPS de teste: **bloqueado**. A conexão Vercel retornou HTTP 403 ao criar `gestor-desktop-test`: sem permissão de criação. Não há CLI Vercel autenticada disponível neste ambiente. Nenhum projeto Vercel existente foi alterado. É necessário disponibilizar um backend de teste e suas variáveis antes de usar o primeiro login/sincronização.
+- Não há teste completo desktop → HTTPS → Neon, instalação interativa em Windows 10/11, impressão ou assinatura corporativa concluídos. O sucesso da build não significa aceite de produção.
