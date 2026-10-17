@@ -18,6 +18,7 @@ if (window.gestorDesktop) {
   let status;
   const update = value => {
     status = value;
+    document.querySelector('.prototype-tag').textContent = `DESKTOP ${value.version || 'versão não identificada'}`;
     const names = { online: 'Online', offline: 'Offline', syncing: 'Sincronizando', expired: 'Sessão expirada' };
     document.querySelector('#desktopConnection').textContent = `${value.conflict ? 'Conflito · ' : ''}${names[value.connection] || 'Offline'} · ${value.pending} envio pendente · última sincronização: ${value.lastSync ? new Date(value.lastSync).toLocaleString('pt-BR') : 'nenhuma'}${value.error ? ' · ' + value.error : ''}`;
     document.querySelector('#desktopReview').hidden = !value.conflict;

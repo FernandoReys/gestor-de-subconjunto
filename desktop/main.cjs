@@ -64,7 +64,7 @@ async function request(endpoint, options = {}) {
   store.save(body); publish(); void sync.run();
   return reply(200, { saved: true });
 }
-function visibleStatus() { const value=sync.status(); if(!active()) value.conflict=value.conflict?{revision:value.conflict.revision}:null; return value; }
+function visibleStatus() { const value={...sync.status(),version:app.getVersion()}; if(!active()) value.conflict=value.conflict?{revision:value.conflict.revision}:null; return value; }
 function publish() { if (win && !win.isDestroyed()) win.webContents.send('desktop:status', visibleStatus()); }
 function guard(event) { if (event.sender !== win?.webContents || event.senderFrame !== win.webContents.mainFrame || !event.senderFrame.url.startsWith('gestor://app/')) throw new Error('Origem IPC inválida.'); }
 function handle(channel, fn) { ipcMain.handle(channel, async (event, ...args) => { guard(event); return fn(...args); }); }
@@ -88,6 +88,7 @@ app.whenReady().then(async () => {
     if (url.host !== 'app' || !file.startsWith(root + path.sep)) return new Response('', { status: 404 });
     const response = await net.fetch(pathToFileURL(file).toString());
     const headers = new Headers(response.headers);
+    headers.set('Cache-Control', 'no-store, max-age=0');
     headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'");
     return new Response(response.body, { status: response.status, headers });
   });
@@ -122,9 +123,13 @@ app.whenReady().then(async () => {
     });
   });
   win.removeMenu();
+  const windowTitle = `Gestor de Subconjunto ${app.getVersion()}`;
+  win.on('page-title-updated', event => { event.preventDefault(); win.setTitle(windowTitle); });
+  win.setTitle(windowTitle);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event, target) => { if (!target.startsWith('gestor://app/')) event.preventDefault(); });
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+  await session.defaultSession.clearCache();
   await win.loadURL('gestor://app/');
   sync.start();
   calendarTimer=setInterval(()=>{if(active())void calendarSync.run();},30000);

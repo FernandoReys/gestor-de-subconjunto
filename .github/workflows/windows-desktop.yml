@@ -33,6 +33,12 @@ jobs:
         run: npm run desktop:pack
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify agenda inside packaged application
+        shell: pwsh
+        run: |
+          $env:GESTOR_PACKAGED_MAIN = Join-Path $PWD 'release/win-unpacked/resources/app.asar/desktop/main.cjs'
+          & './node_modules/electron/dist/electron.exe' './tests/electron-smoke.cjs'
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged agenda check failed' }
       - name: Verify executable and record SHA256
         shell: pwsh
         run: |

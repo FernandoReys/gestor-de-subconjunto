@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'gestor-electron-'));
 app.setPath('userData', home);
-require('../desktop/main.cjs');
+require(process.env.GESTOR_PACKAGED_MAIN || '../desktop/main.cjs');
 const timeout = setTimeout(() => { console.error('Electron smoke timed out'); app.exit(1); }, 30000);
 app.on('browser-window-created', (_event, win) => {
   win.webContents.on('did-finish-load', async () => {
