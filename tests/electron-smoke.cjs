@@ -21,7 +21,9 @@ app.on('browser-window-created', (_event, win) => {
       assert.equal(result.status, 401); assert.equal(result.bridge, true); assert.equal(result.scheduler, true); assert.equal(result.node, 'undefined'); assert.equal(result.server, true); assert.ok(result.css);
       assert.ok(fs.existsSync(path.join(home, 'gestor.sqlite')));
       const calendar = await win.webContents.executeJavaScript(`(() => {
-        authenticated=true; storageMode='loading'; config=S.defaults(); employees=[]; location.hash='#agenda'; agendaPage();
+        authenticated=true; storageMode='loading'; config=S.defaults(); employees=[];
+        document.body.classList.remove('auth-loading'); document.querySelector('#loginScreen').hidden=true;
+        location.hash='#agenda'; agendaPage();
         return {days:document.querySelectorAll('.agenda-day').length, title:document.querySelector('#app h1').textContent, module:!!window.GestorAgenda, button:!!document.querySelector('#agendaConnect')};
       })()`);
       assert.equal(calendar.days,7);assert.equal(calendar.title,'Agenda de produção');assert.equal(calendar.module,true);assert.equal(calendar.button,true);
