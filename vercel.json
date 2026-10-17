@@ -4,10 +4,22 @@
     {
       "src": "package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": {
+        "distDir": "dist"
+      }
     },
-    { "src": "api/state.js", "use": "@vercel/node" },
-    { "src": "api/auth.js", "use": "@vercel/node" }
+    {
+      "src": "api/state.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/auth.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/desktop-sync.js",
+      "use": "@vercel/node"
+    }
   ],
   "buildCommand": "npm run build",
   "outputDirectory": "dist",

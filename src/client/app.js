@@ -18,14 +18,14 @@ const STORAGE='gestor-subconjunto-v4';
 try{localStorage.removeItem('gestor-subconjunto-v2');theme=localStorage.getItem('gestor-theme')==='dark'?'dark':'light';}catch{}
 const payload=()=>({config,employees,generated:!!result,...(pendingOperation?{operation:pendingOperation}:{})});
 function storageStatus(message){const el=$('#storageStatus');if(el)el.textContent=message;}
-function localStatus(){return presentationMode?'Modo apresentação · dados salvos apenas neste navegador.':'Rascunho local · banco SQL aguardando configuração.';}
+function localStatus(){if(window.gestorDesktop)return 'Falha ao abrir SQLite. Não edite antes de reiniciar o aplicativo.';return presentationMode?'Modo apresentação · dados salvos apenas neste navegador.':'Rascunho local · banco SQL aguardando configuração.';}
 async function persist(){
  const latest=JSON.stringify(payload());if(latest===lastSaved)return;
  storageStatus('Salvando no banco SQL…');
  const response=await fetch('/api/state.js',{method:'PUT',headers:{'Content-Type':'application/json'},body:latest});
  if(response.status===401){showLogin('Sua sessão expirou. Entre novamente.');throw new Error('Sessão expirada.');}
  if(!response.ok)throw new Error((await response.json().catch(()=>({}))).error||'Falha ao salvar.');
- pendingOperation=null;lastSaved=JSON.stringify(payload());storageStatus('Dados salvos no banco SQL.');
+ pendingOperation=null;const accepted=JSON.parse(latest);delete accepted.operation;lastSaved=JSON.stringify(accepted);storageStatus(window.gestorDesktop?'Dados salvos no SQLite deste computador.':'Dados salvos no banco SQL.');
 }
 function commit(){clearTimeout(saveTimer);saveQueue=saveQueue.catch(()=>{}).then(persist);return saveQueue;}
 function save(){
@@ -34,10 +34,12 @@ function save(){
  try{localStorage.setItem('gestor-theme',theme);}catch{}
  const data=JSON.stringify(payload());if(data===lastSaved)return;
  if(storageMode==='local'){
+  if(window.gestorDesktop){storageStatus(localStatus());return;}
   try{localStorage.setItem(STORAGE,JSON.stringify({version:4,...payload()}));lastSaved=data;storageStatus(localStatus());}
   catch{storageStatus('Salvamento local indisponível.');}
   return;
  }
+ if(window.gestorDesktop){commit().catch(error=>{storageStatus('Falha ao salvar no SQLite.');notify(error.message);});return;}
  clearTimeout(saveTimer);saveTimer=setTimeout(()=>{commit().catch(error=>{storageStatus('Falha ao salvar no banco SQL.');notify(error.message);});},450);
 }
 async function loadState(){
@@ -49,8 +51,9 @@ async function loadState(){
   const saved=await response.json();config={...S.defaults(),...saved.config};employees=saved.employees||[];
   const upgraded=upgradeLegacyFpIds();
   if(saved.generated&&employees.length&&catalog().length)result=buildResult();
-  storageMode='sql';lastSaved=upgraded?'':JSON.stringify(payload());storageStatus('Dados salvos no banco SQL.');
+  storageMode='sql';lastSaved=upgraded?'':JSON.stringify(payload());storageStatus(window.gestorDesktop?'Dados salvos no SQLite deste computador.':'Dados salvos no banco SQL.');
  }catch{
+  if(window.gestorDesktop){storageMode='loading';storageStatus('Falha ao abrir SQLite. Reinicie o aplicativo.');return;}
   try{const saved=JSON.parse(localStorage.getItem(STORAGE)||'null');if(saved?.version===4&&Array.isArray(saved.employees)){
    config={...config,...saved.config};employees=saved.employees;if(saved.generated&&employees.length&&catalog().length)result=buildResult();
   }}catch{}
@@ -201,6 +204,7 @@ function historyPage(){
 function historyDetails(id){const item=(config.history||[]).find(x=>x.id===id);if(!item)return;const d=$('#stationDialog'),snap=item.snapshot;d.innerHTML=`<div class="dialog-head"><h2 id="stationTitle">${esc(item.fp)} · ${dateLabel(item.date)}</h2><button class="icon-button" data-close="stationDialog" aria-label="Fechar">×</button></div><div class="dialog-body"><p><strong>Produto:</strong> ${esc(item.product)} · <strong>Turno:</strong> ${esc(item.shift)}</p><p><strong>Assistentes:</strong> ${esc(item.organizers.join(', ')||'Nenhum')}</p><p><strong>Status:</strong> ${esc(item.status)} · <strong>Criada:</strong> ${new Date(item.createdAt).toLocaleString('pt-BR')} · <strong>Alterada:</strong> ${new Date(item.updatedAt).toLocaleString('pt-BR')}</p><div class="table-scroll"><table class="schedule-table"><thead><tr><th>Horário</th>${[...snap.positions,...(snap.extraPosts||[])].map(s=>`<th>${esc(s.id)} · ${esc(s.name)}${s.slot>1?' · '+s.slot:''}</th>`).join('')}</tr></thead><tbody>${snap.rows.filter(r=>r.kind==='work').map(r=>`<tr><td>${S.clock(r.start)}–${S.clock(r.end)}</td>${[...r.assign,...(snap.extraPosts||[]).map(p=>p.employeeId)].map(id=>`<td>${esc(snap.employees.find(p=>p.id===id)?.name||'Pendente')}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="helper">${esc(item.notes||'Sem observações.')}</p></div><div class="dialog-foot"><button class="button" data-close="stationDialog">Fechar</button>${item.status==='Pronta'?`<button class="button primary" data-history-status="${esc(item.id)}:Finalizada">Finalizar</button><button class="button danger" data-history-status="${esc(item.id)}:Cancelada">Cancelar</button>`:''}<button class="button primary" data-action="history-print">Gerar PDF</button></div>`;d.showModal();
 }
 async function saveSchedule(finalize=false){
+ if(finalize&&document.body.dataset.syncConflict==='true'){notify('Resolva o conflito de sincronização antes de confirmar a escala.');return;}
  if(!result||!result.rows?.length||(finalize&&!result.complete)||storageMode==='local'){notify(storageMode==='local'?'Banco SQL indisponível. Não confirme uma escala local.':'Resolva as pendências antes de confirmar.');return;}
  if((config.history||[]).length>=100){notify('Limite de registros nesta versão. Exporte e revise a retenção do histórico.');return;}
  if(!config.date||!config.shiftName||(finalize&&!result.organizers?.length)||!catalog().some(p=>p.id===config.product)){notify('Informe data, turno, FP e assistente responsável.');return;}
@@ -248,8 +252,9 @@ document.addEventListener('click',e=>{
 });
 window.addEventListener('afterprint',()=>delete document.body.dataset.printMode);
 $('#menuButton').addEventListener('click',()=>toggleMenu(!$('#sidebar').classList.contains('open')));$('#navBackdrop').addEventListener('click',()=>toggleMenu(false));document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMenu(false);});
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button');button.disabled=true;$('#loginError').textContent='';try{const response=await fetch('/api/auth.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:form.elements.username.value.trim(),password:form.elements.password.value})});if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.error||'Não foi possível entrar.');}form.elements.password.value='';authenticated=true;document.body.classList.remove('auth-loading');$('#loginScreen').hidden=true;render();await loadState();}catch(error){$('#loginError').textContent=error.message;}finally{button.disabled=false;}});
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button');button.disabled=true;$('#loginError').textContent='';try{const response=await fetch('/api/auth.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:form.elements.username.value.trim(),password:form.elements.password.value,...(window.gestorDesktop?{server:form.elements.server.value.trim()}:{})})});if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.error||'Não foi possível entrar.');}form.elements.password.value='';authenticated=true;document.body.classList.remove('auth-loading');$('#loginScreen').hidden=true;render();await loadState();}catch(error){$('#loginError').textContent=error.message;}finally{button.disabled=false;}});
 $('#logoutButton').addEventListener('click',async()=>{try{await fetch('/api/auth.js',{method:'DELETE'});}finally{showLogin();}});
 window.addEventListener('hashchange',()=>{viewIndex=0;render();window.scrollTo(0,0);});
 setInterval(()=>{const clock=$('#pilotClock');if(clock){const now=new Date();clock.textContent=`${now.toLocaleDateString('pt-BR')} · ${now.toLocaleTimeString('pt-BR')}`;}},1000);
+window.desktopFlush=()=>authenticated&&storageMode==='sql'?commit():Promise.resolve();
 bootstrap();

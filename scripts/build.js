@@ -9,7 +9,7 @@ const publicDir = path.join(root, 'public');
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(path.join(dist, '.openai'), { recursive: true });
 
-['index.html', 'styles.css', 'app.js', 'scheduler.js'].forEach((file) => fs.copyFileSync(path.join(client, file), path.join(dist, file)));
+['index.html', 'styles.css', 'app.js', 'scheduler.js', 'desktop.js'].forEach((file) => fs.copyFileSync(path.join(client, file), path.join(dist, file)));
 fs.cpSync(publicDir, dist, { recursive: true });
 fs.copyFileSync(path.join(root, '.openai', 'hosting.json'), path.join(dist, '.openai', 'hosting.json'));
 

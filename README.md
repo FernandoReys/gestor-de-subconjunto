@@ -60,3 +60,7 @@ Sem `DATABASE_URL`, o aplicativo salva somente um rascunho local. **Não confirm
 O gerador considera apenas operadores ativos e habilitados; ausentes e assistentes ficam fora dos postos. Fixações incompatíveis e seleções iniciais duplicadas geram erro. A mesma pessoa não ocupa duas posições no mesmo período. Os limites de permanência e pausas continuam presentes, e falta de equipe gera pendências em vez de uma escala inventada. Postos adicionais são atribuições manuais durante o turno. Para FP com mais de uma posição em Preckoff, a lista horária separada é ocultada; use a escala principal.
 
 Ações de limpeza são irreversíveis no aplicativo e exigem digitação explícita. O histórico preserva nomes e posições em um snapshot, inclusive quando o cadastro de um funcionário for removido. A auditoria com identificação do autor e os papéis Administrador, Assistente e Visualização devem ser concluídos antes de uso com dados reais.
+
+## Windows Desktop (branch de desenvolvimento)
+
+A versão Electron + SQLite, o protocolo de sincronização isolado e o build NSIS estão documentados em [docs/windows-desktop.md](docs/windows-desktop.md). O workflow **Windows Desktop** gera o instalador como artefato nesta branch. É necessário configurar um backend HTTPS e banco de teste antes do primeiro login. A sincronização desktop não grava nas tabelas web legadas; não aplique migrações em produção sem revisão e autorização.

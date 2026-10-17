@@ -5,3 +5,7 @@ generated_images/
 verification/
 .env
 .env.*
+release/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

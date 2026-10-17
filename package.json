@@ -2,13 +2,62 @@
   "name": "gestor-de-subconjunto",
   "version": "2.0.0",
   "private": true,
-  "description": "Protótipo demonstrativo para montagem de escalas de subconjuntos.",
+  "description": "Planejamento de produ\u00e7\u00e3o com armazenamento offline e sincroniza\u00e7\u00e3o revisada.",
   "scripts": {
     "build": "node scripts/build.js",
     "start": "node server.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "desktop": "npm run build && electron .",
+    "desktop:pack": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "desktop:rebuild": "electron-builder install-app-deps",
+    "test:electron": "electron tests/electron-smoke.cjs"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.0"
+    "@neondatabase/serverless": "^1.0.0",
+    "better-sqlite3": "^12.11.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "electron": "^42.11.15",
+    "electron-builder": "^26.15.3"
+  },
+  "main": "desktop/main.cjs",
+  "author": "Fernando Reis",
+  "build": {
+    "appId": "br.com.fernandoreis.gestor",
+    "productName": "Gestor de Subconjunto",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**",
+      "shared/**",
+      "dist/**",
+      "package.json"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "desktop/icon.ico",
+      "artifactName": "Gestor-de-Subconjunto-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false
+    }
   }
 }
