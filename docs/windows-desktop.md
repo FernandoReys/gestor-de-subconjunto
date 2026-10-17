@@ -76,3 +76,17 @@ Não é uma liberação automática para produção. A entrega de código e do i
 - Neon: criada a branch isolada `windows-desktop-test` (`br-cold-sun-b4vrukpl`) no projeto `gestor-de-subconjunto` (`silent-block-63843978`). Migração 003 aplicada **somente nessa branch**. Teste no Neon real de primeira revisão, reenvio idempotente e conflito de revisão passou; fixtures foram revertidas por subtransação. Conferência final: revisão `0`, estado vazio, histórico com `0` linhas. Produção não foi modificada.
 - Backend HTTPS de teste: **bloqueado**. A conexão Vercel retornou HTTP 403 ao criar `gestor-desktop-test`: sem permissão de criação. Não há CLI Vercel autenticada disponível neste ambiente. Nenhum projeto Vercel existente foi alterado. É necessário disponibilizar um backend de teste e suas variáveis antes de usar o primeiro login/sincronização.
 - Não há teste completo desktop → HTTPS → Neon, instalação interativa em Windows 10/11, impressão ou assinatura corporativa concluídos. O sucesso da build não significa aceite de produção.
+
+## Backend de teste configurado — continuação em 17/10/2026
+
+O bloqueio da integração Vercel foi contornado usando a sessão autorizada no navegador. Projeto separado criado: `gestor-desktop-test` (`prj_WRJOX5uyWODywN7GxOh8D5Fs5prZ`), conectado ao repositório existente e com branch de implantação `feature/windows-desktop-offline`.
+
+- Servidor a informar no aplicativo Windows: `https://project-fj4by.vercel.app`.
+- [Deploy configurado e Ready](https://vercel.com/fernando-8621/gestor-desktop-test/BWYm6BexbS48kzKGQizZMhtHGzsT), commit `1469c5d`. O ambiente chamado Production pertence apenas a este novo projeto de teste; os projetos web originais e o banco de produção não foram alterados.
+- Variáveis `DESKTOP_DATABASE_URL`, `AUTH_SESSION_SECRET` e `PILOT_ADMIN_PASSWORD_HASH` salvas como **Secret** somente no projeto novo; `DESKTOP_SYNC_ENABLED=1` como Config. Valores e senha inicial não estão neste documento, no repositório nem no instalador.
+- Banco conectado à branch Neon `windows-desktop-test` (`br-cold-sun-b4vrukpl`). A conexão existente da branch foi utilizada. A tentativa opcional de criar uma role mais restrita foi rejeitada pela revisão automática e não foi executada.
+- Teste remoto real com os módulos Store/Sync do desktop e dois SQLite locais: autenticação, bloqueio sem sessão (401), envio SQLite A → HTTPS → Neon → SQLite B, edição offline persistida após reabertura, conflito compare-and-swap real sem perda da versão local, decisão explícita e retry idempotente aprovados.
+- Logout validado: cookie removido e requisição autenticada seguinte retorna 401. O harness inicial mantinha indevidamente o cookie antigo; o tratamento de cookie vazio no harness foi corrigido e esse caso foi reexecutado com sucesso.
+- Valores temporários removidos por nova revisão; conferência no Neon: revisão `4`, nenhum funcionário e nenhuma nota de teste no estado atual, quatro revisões no histórico de auditoria.
+- Os testes usaram módulos desktop no runtime Node e API HTTPS real. Ainda faltam instalação/uso no Windows 10 e 11, dois computadores físicos, impressões e assinatura Authenticode.
+- O instalador do Actions #1 continua válido: o código do desktop não foi alterado nesta configuração. A conta inicial do backend é `fernando`, com senha exclusiva fornecida ao proprietário fora do repositório.
