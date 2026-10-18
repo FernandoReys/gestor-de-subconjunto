@@ -1,5 +1,15 @@
 # Validação web 2.2.0
 
+## Mini chat — atualização 2.2.1
+
+O assistente fica em um botão circular azul no canto inferior direito, com indicador de resposta e um mini chat que abre sem mudar a página. O painel acompanha a navegação e preserva o texto digitado; tem fechamento por botão/Escape, rótulos acessíveis, adaptação mobile e cores claras/escuras. A bolinha indica o acesso ao suporte/resposta, não certifica conectividade com um modelo.
+
+**Preparar escala** calcula uma prévia com o motor local do Gestor. Ela informa lacunas, avisos e assistente responsável pendente. Aplicar exige uma confirmação separada e apenas atualiza a montagem; não confirma o histórico. O código compara os dados atuais com os usados na prévia e bloqueia a aplicação se algo mudou.
+
+**Verificar sistema** orienta sobre o modo de salvamento e conflitos visíveis. Não faz um teste remoto de disponibilidade nem altera código. **Explicar pendências** pode enviar à IA somente um resumo validado de quantidades, postos, limites e horários; nomes, matrículas, observações, FPs e restrições individuais são excluídos. O servidor usa uma lista explícita de campos e rejeita resumos inválidos.
+
+43 testes locais passaram após a mudança. A validação visual foi ampliada para mini chat em páginas diferentes, prévia sem alteração automática, confirmação de aplicação, rejeição de prévia desatualizada e dimensões mobile. A resposta real da IA continua dependente da autenticação e disponibilidade do Gateway no ambiente publicado.
+
 Esta etapa volta à versão site, somente na branch `feature/windows-desktop-offline` e no projeto Vercel `gestor-desktop-test`. Main e o banco de produção não são alterados. O workflow Windows passa a ser exclusivamente manual; nenhum instalador é gerado nesta etapa.
 
 ## Interface

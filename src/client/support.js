@@ -1,12 +1,72 @@
 'use strict';
 const supportConversation=[];
-let supportBusy=false;
+let supportBusy=false,supportOpen=false,supportDraft=null,supportSummary=null;
 function supportPage(){
- const help=window.GestorHelp;
- $('#app').innerHTML=heading('AJUDA NO DIA A DIA','Assistente do Gestor','Tire dúvidas sobre cadastros, agenda e montagem de escala.')+`<div class="support-layout"><section class="card support-chat"><div class="support-chat-head"><span class="support-symbol">${icon('spark')}</span><div><h2>Como posso ajudar?</h2><p>Suporte para quem organiza a linha</p></div><button class="button small" id="supportClear" ${supportBusy?'disabled':''}>Limpar conversa</button></div><div class="support-messages" id="supportMessages" role="log" aria-live="polite"></div><form id="supportForm"><label class="field" for="supportQuestion">Sua dúvida<textarea id="supportQuestion" name="question" maxlength="2000" rows="3" required placeholder="Ex.: Como funciona a troca do Preckoff?"></textarea></label><div class="support-send"><small>As mensagens são enviadas ao serviço de IA. Não inclua senhas, nomes, restrições médicas ou dados internos da produção.</small><button class="button primary" type="submit" ${supportBusy?'disabled':''}>${supportBusy?'Respondendo…':'Enviar pergunta'}</button></div></form><p class="helper">A IA orienta sobre o uso do programa. Não modifica dados nem substitui procedimentos oficiais. Se estiver indisponível, o chat identifica a resposta como Guia local.</p></section><aside class="support-guide"><p class="eyebrow">GUIA DO SISTEMA</p>${help.articles.map(x=>`<details class="card support-article"><summary>${esc(x.title)}</summary><p>${esc(x.text)}</p><a class="button small" href="#${x.route}">Abrir no sistema →</a></details>`).join('')}</aside></div>`;
- const messages=$('#supportMessages');
- if(!supportConversation.length){const welcome=document.createElement('p');welcome.className='support-welcome';welcome.textContent='Olá! Posso explicar como cadastrar uma FP, programar a semana ou conferir o rodízio. Use o guia ao lado ou escreva sua pergunta.';messages.append(welcome);}
- for(const item of supportConversation){const bubble=document.createElement('article');bubble.className='support-bubble '+item.role;const label=document.createElement('strong');label.textContent=item.role==='user'?'Você':item.mode==='guide'?'Guia local · sem resposta de IA':'Assistente · IA';const text=document.createElement('p');text.textContent=item.content;bubble.append(label,text);for(const source of item.sources||[]){const link=document.createElement('a');link.href='#'+source.route;link.textContent=source.title+' →';bubble.append(link);}messages.append(bubble);}
- $('#supportClear').onclick=()=>{supportConversation.length=0;supportPage();};
- $('#supportForm').onsubmit=async event=>{event.preventDefault();if(supportBusy)return;const question=$('#supportQuestion').value.trim();if(!question)return;supportConversation.push({role:'user',content:question});supportBusy=true;supportPage();try{const response=await fetch('/api/support.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:supportConversation.slice(-11).map(x=>({role:x.role,content:x.content.slice(0,2000)}))})});const data=await response.json();if(!response.ok)throw new Error(data.error||'Não foi possível enviar.');supportConversation.push({role:'assistant',content:data.answer,mode:data.mode,sources:data.sources});}catch(error){supportConversation.push({role:'assistant',content:error.message,mode:'guide'});}finally{supportBusy=false;if(location.hash==='#support')supportPage();}};
+ $('#app').innerHTML=heading('AJUDA NO DIA A DIA','Assistente do Gestor','O assistente acompanha você pelo botão no canto direito.',`<button class="button primary" data-open-support>Abrir mini chat ${icon('spark')}</button>`)+`<section class="card support-intro"><h2>Ajuda para organizar a linha</h2><p>Prepare uma prévia da escala, confira pendências e tire dúvidas sem sair da página em que está trabalhando.</p><div class="actions"><button class="button" data-support-action="schedule">Preparar escala</button><button class="button" data-support-action="diagnose">Diagnosticar sistema</button></div><p class="helper">A prévia usa as regras do Gestor e só é aplicada quando você confirma. O chat não altera o código nem aprova uma escala com pendências.</p></section><div class="support-help-grid">${window.GestorHelp.articles.map(x=>`<details class="card support-article"><summary>${esc(x.title)}</summary><p>${esc(x.text)}</p><a class="button small" href="#${x.route}">Abrir no sistema →</a></details>`).join('')}</div>`;
 }
+function toggleSupport(open){
+ supportOpen=open;const panel=$('#supportWidget'),launcher=$('#supportLauncher');if(!panel)return;
+ panel.hidden=!open;launcher.setAttribute('aria-expanded',String(open));launcher.classList.remove('has-reply');
+ if(open){renderSupportMessages();$('#supportQuestion').focus();}else launcher.focus();
+}
+function renderSupportMessages(){
+ const messages=$('#supportMessages');if(!messages)return;messages.replaceChildren();
+ if(!supportConversation.length){const welcome=document.createElement('p');welcome.className='support-welcome';welcome.textContent='Olá! Posso ajudar com a escala, explicar pendências e orientar sobre o sistema. O que você precisa fazer?';messages.append(welcome);}
+ for(const item of supportConversation){
+  const bubble=document.createElement('article');bubble.className='support-bubble '+item.role;
+  const label=document.createElement('strong');label.textContent=item.role==='user'?'Você':item.mode==='ai'?'Assistente · IA':item.mode==='diagnostic'?'Diagnóstico do Gestor':'Guia local · sem resposta de IA';
+  const text=document.createElement('p');text.textContent=item.content;bubble.append(label,text);
+  for(const source of item.sources||[]){const link=document.createElement('a');link.href='#'+source.route;link.textContent=source.title+' →';bubble.append(link);}
+  if(item.draft&&supportDraft?.id===item.draft){const button=document.createElement('button');button.className='button small';button.textContent='Conferir e aplicar prévia';button.onclick=reviewSupportDraft;bubble.append(button);}
+  messages.append(bubble);
+ }
+ if(supportBusy){const note=document.createElement('p');note.className='helper';note.textContent='Consultando o assistente…';messages.append(note);}
+ const send=$('#supportForm button[type=submit]');if(send)send.disabled=supportBusy;
+ messages.scrollTop=messages.scrollHeight;
+}
+function supportMessage(content,mode='diagnostic',extra={}){supportConversation.push({role:'assistant',content,mode,...extra});renderSupportMessages();if(!supportOpen)$('#supportLauncher')?.classList.add('has-reply');}
+async function sendSupportQuestion(question,context){
+ if(supportBusy||!question.trim())return;
+ supportConversation.push({role:'user',content:question.trim()});supportBusy=true;renderSupportMessages();
+ try{
+  const messages=supportConversation.filter(x=>x.role==='user'||x.mode==='ai').slice(-9).map(x=>({role:x.role,content:x.content.slice(0,2000)}));
+  const response=await fetch('/api/support.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages,...(context?{context}:{})})});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||'Não foi possível enviar.');
+  supportMessage(data.answer,data.mode,data.sources?{sources:data.sources}:{});
+ }catch(error){supportMessage(error.message,'guide');}finally{supportBusy=false;renderSupportMessages();}
+}
+function prepareSupportSchedule(){
+ toggleSupport(true);
+ if(!activeCatalog().length){supportMessage('Cadastre uma FP com os postos necessários antes de montar a escala. Depois selecione a equipe e o assistente responsável.','diagnostic',{sources:[{title:'Cadastrar FP',route:'fp'},{title:'Funcionários',route:'employees'}]});return;}
+ if(!activeCatalog().some(x=>x.id===config.product)){supportMessage('Selecione a FP e o turno na montagem antes de preparar a prévia.','diagnostic',{sources:[{title:'Selecionar FP na montagem',route:'schedule'}]});return;}
+ const plan=buildResult();supportSummary=window.GestorSupportContext.summary(plan,config,employees);
+ if(plan.errors.length){supportDraft=null;supportMessage('Não foi possível preparar a escala:\n\n'+plan.errors.join('\n')+'\n\nCorrija os campos na montagem e peça uma nova revisão.','diagnostic',{sources:[{title:'Abrir montagem de escala',route:'schedule'}]});return;}
+ supportDraft={id:crypto.randomUUID(),fingerprint:JSON.stringify({config,employees}),plan};
+ const gaps=plan.gaps.slice(0,8).map(g=>`Posto ${g.station}: sem cobertura ${S.clock(g.start)}–${S.clock(g.end)}.`);
+ supportMessage([`Prévia calculada: ${plan.positions.length} posições e ${S.duration(plan.workMinutes)} efetivas.`,`Regra: 2 horas por posto; Preckoff: 1 hora. Pausas preservadas.`,plan.complete?'A distribuição não apresentou lacunas de cobertura.':`${plan.gaps.length} lacuna(s) e ${plan.warnings.length} aviso(s).`,...gaps,...plan.warnings.slice(0,5),!organizers().length?'Selecione um assistente responsável antes de confirmar a escala.':'Assistente responsável selecionado.','A prévia ainda não foi aplicada. Confira antes de usar.'].join('\n\n'),'diagnostic',{draft:supportDraft.id});
+}
+function reviewSupportDraft(){
+ if(!supportDraft)return;
+ if(supportDraft.fingerprint!==JSON.stringify({config,employees})){supportMessage('Os dados mudaram desde a análise. Prepare uma nova prévia para não aplicar uma versão desatualizada.');supportDraft=null;return;}
+ const draft=supportDraft,d=$('#confirmDialog');
+ d.innerHTML=`<div class="dialog-head"><h2 id="confirmDialogTitle">Aplicar prévia na montagem?</h2><button class="icon-button" data-close="confirmDialog" aria-label="Fechar">×</button></div><div class="dialog-body"><p>${draft.plan.positions.length} posições · ${esc(S.duration(draft.plan.workMinutes))} efetivas.</p><p>${draft.plan.gaps.length} lacunas e ${draft.plan.warnings.length} avisos. Confira a tabela completa na página de montagem antes de confirmar a escala.</p><p>Aplicar substitui apenas a distribuição atual. O histórico não é finalizado por esta ação.</p><p id="supportApplyError" role="alert"></p></div><div class="dialog-foot"><button class="button" data-close="confirmDialog">Voltar</button><button class="button primary" id="supportApply">Aplicar e abrir montagem</button></div>`;
+ $('#supportApply').onclick=()=>{if(draft.fingerprint!==JSON.stringify({config,employees})){$('#supportApplyError').textContent='Os dados mudaram. Feche e prepare uma nova prévia.';return;}result=draft.plan;viewIndex=0;delete config.confirmedId;d.close();supportDraft=null;save();location.hash='schedule';toggleSupport(false);render();notify('Prévia aplicada. Confira a escala antes de confirmar.');};d.showModal();
+}
+function diagnoseSupportSystem(){
+ toggleSupport(true);
+ const state=storageMode==='sql'?'Este ambiente usa salvamento no servidor. Confira a confirmação no rodapé após editar; este diagnóstico não é um teste de conexão.':storageMode==='local'?'Você está em rascunho local. O servidor ainda não confirmou o salvamento. Mantenha esta aba aberta e confira sua conexão.':'Os dados ainda estão carregando. Aguarde antes de editar.';
+ const conflict=$('#webConflict')?'Existe conflito de versões. Use o aviso acima para baixar as versões e revisar; não substitua os dados sem conferir.':'Não há aviso de conflito de versões nesta página.';
+ supportMessage(`Diagnóstico desta página:\n\n${state}\n\n${conflict}\n\nGoogle Agenda só estará conectado após a autorização da conta.\n\nSe encontrar um erro de código, descreva a ação e a mensagem exibida. Posso orientar a investigação; a correção do programa precisa ser testada e publicada no projeto.`);
+}
+function initSupportWidget(){
+ const launcher=document.createElement('button');launcher.id='supportLauncher';launcher.className='support-launcher';launcher.type='button';launcher.setAttribute('aria-label','Abrir assistente do Gestor');launcher.setAttribute('aria-controls','supportWidget');launcher.setAttribute('aria-expanded','false');launcher.innerHTML=`${icon('spark')}<span class="support-dot" aria-hidden="true"></span><span class="sr-only">Assistente do Gestor</span>`;
+ const panel=document.createElement('section');panel.id='supportWidget';panel.className='support-widget';panel.hidden=true;panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Mini chat do Assistente do Gestor');
+ panel.innerHTML=`<div class="support-widget-head"><span class="support-symbol">${icon('spark')}</span><div><h2>Assistente do Gestor</h2><p>Escalas e suporte do sistema</p></div><button class="icon-button" id="supportClose" aria-label="Fechar mini chat">×</button></div><div class="support-quick-actions"><button type="button" data-support-action="schedule">Preparar escala</button><button type="button" data-support-action="diagnose">Verificar sistema</button><button type="button" id="supportExplain">Explicar pendências</button></div><div class="support-messages" id="supportMessages" role="log" aria-live="polite" aria-relevant="additions text"></div><form id="supportForm"><label class="sr-only" for="supportQuestion">Sua dúvida</label><textarea id="supportQuestion" maxlength="2000" rows="2" required placeholder="Como posso ajudar?"></textarea><div class="support-widget-send"><button class="button small" id="supportClear" type="button">Limpar</button><button class="button primary small" type="submit">Enviar ${icon('arrow')}</button></div><p class="support-privacy">Mensagens vão para a IA. Não envie senhas ou dados pessoais. Diagnósticos da escala ficam neste navegador, salvo quando você pede uma explicação com resumo numérico.</p></form>`;
+ document.body.append(panel,launcher);launcher.onclick=()=>toggleSupport(!supportOpen);$('#supportClose').onclick=()=>toggleSupport(false);
+ $('#supportClear').onclick=()=>{if(supportBusy)return;supportConversation.length=0;supportDraft=null;supportSummary=null;renderSupportMessages();};
+ $('#supportForm').onsubmit=event=>{event.preventDefault();const field=$('#supportQuestion'),question=field.value;field.value='';void sendSupportQuestion(question);};
+ $('#supportExplain').onclick=()=>{if(supportDraft&&supportDraft.fingerprint!==JSON.stringify({config,employees})){prepareSupportSchedule();return;}if(!supportSummary){prepareSupportSchedule();return;}void sendSupportQuestion('Explique as pendências deste resumo da escala e quais campos preciso revisar, sem inventar funcionários ou aprovar produção.',supportSummary);};
+ document.addEventListener('click',event=>{const button=event.target.closest('[data-open-support],[data-support-action]');if(!button)return;if(button.hasAttribute('data-open-support'))toggleSupport(true);else if(button.dataset.supportAction==='schedule')prepareSupportSchedule();else diagnoseSupportSystem();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&supportOpen&&!document.querySelector('dialog[open]'))toggleSupport(false);});
+}
+window.addEventListener('DOMContentLoaded',initSupportWidget);

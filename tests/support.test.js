@@ -17,3 +17,14 @@ test('without AI credentials the answer is explicitly labelled as local guide',a
  delete process.env.VERCEL_OIDC_TOKEN;delete process.env.AI_GATEWAY_API_KEY;
  const response=await request({messages:[{role:'user',content:'Como funciona o rodízio no Preckoff?'}]});assert.equal(response.statusCode,200);assert.equal(response.data.mode,'guide');assert.match(response.data.answer,/120/);
 });
+test('schedule context contains counts and times only, stripping names and unrelated fields',()=>{
+ const C=require('../src/client/support-context');
+ const summary=C.summary({positions:[{id:'40'}],workMinutes:120,errors:[],warnings:['Nome privado'],gaps:[{station:'40-1',start:900,end:960}],complete:false},{start:'14:00',end:'17:00',fp:'FP privada'},[{name:'Nome privado',active:true,present:true,role:'Operador',notes:'Nota privada'}]);
+ assert.ok(!JSON.stringify(summary).includes('privad'));
+ const cleaned=C.validate({...summary,names:['Não transmitir'],notes:'Privado'});
+ assert.equal(cleaned.names,undefined);assert.equal(cleaned.notes,undefined);assert.equal(cleaned.operators,1);
+ assert.throws(()=>C.validate({...summary,gaps:[{station:'nome de funcionário',start:900,end:960}]}));
+});
+test('support endpoint rejects an invalid schedule context before contacting AI',async()=>{
+ const response=await request({messages:[{role:'user',content:'Analise'}],context:{names:['Teste']}});assert.equal(response.statusCode,400);
+});
