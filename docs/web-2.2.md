@@ -33,3 +33,13 @@ O manual versionado orienta o modelo sobre recursos reais. Se não houver creden
 41 testes locais aprovados: datas, agenda, persistência, CAS, idempotência, conflitos, rodízio, restrições, limite de linha, chat e autenticação. Build e checagens de sintaxe aprovados. O workflow Web validation verifica interface web em navegador Electron, com servidor HTTP local e sessão descartável de teste, e publica capturas dos temas/menu sem gerar instalador.
 
 Ainda exige validação no ambiente publicado: login/salvamento real, acesso AI Gateway e suas condições de conta, consentimento Google e criação/edição/cancelamento de evento no calendário escolhido. Somente após validar o site será preparada outra versão instalável.
+
+### Resultado da publicação em 18/10/2026
+
+- Código: `7f6fa6397e8b137495b4affdbcacf81922978465` na feature branch.
+- Site de teste: https://project-fj4by.vercel.app/ respondeu HTTP 200 com `WEB 2.2.0` e arquivos versionados `?v=2.2.0`.
+- Vercel criou o deploy `AjXGXJQ1iWtbi3mqkFTgik5aTnBX` para esse commit no projeto de teste. A conexão continua apontando para o banco isolado já configurado.
+- [Web validation](https://github.com/FernandoReys/gestor-de-subconjunto/actions/runs/39168742648) passou: 41 testes, build e testes visuais de agenda, temas, menu desktop/mobile e guia de suporte. Capturas no artefato `Web-visual-checks-7f6fa6397e8b137495b4affdbcacf81922978465`.
+- O painel Connect da Vercel informa que não há conector vinculado. Google OAuth não foi ativado.
+- A tentativa de autenticação pelo formulário seguro do site retornou “Usuário ou senha inválidos”. Não houve redefinição de senha. O teste autenticado do banco publicado e da IA real continua pendente; não confundir o guia local aprovado em CI com uma resposta real do modelo.
+- Nenhum instalador novo foi gerado nesta etapa.
