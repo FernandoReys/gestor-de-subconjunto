@@ -29,7 +29,7 @@ async function sendSupportQuestion(question,context){
  if(supportBusy||!question.trim())return;
  supportConversation.push({role:'user',content:question.trim()});supportBusy=true;renderSupportMessages();
  try{
-  const messages=supportConversation.filter(x=>x.role==='user'||x.mode==='ai').slice(-9).map(x=>({role:x.role,content:x.content.slice(0,2000)}));
+  const messages=[];let budget=0;for(const item of supportConversation.filter(x=>x.role==='user'||x.mode==='ai'||x.mode==='guide').slice(-9).reverse()){const content=item.content.slice(0,2000);if(budget+content.length>12000)break;messages.unshift({role:item.role,content});budget+=content.length;}
   const response=await fetch('/api/support.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages,...(context?{context}:{})})});
   const data=await response.json();if(!response.ok)throw new Error(data.error||'Não foi possível enviar.');
   supportMessage(data.answer,data.mode,data.sources?{sources:data.sources}:{});
@@ -50,7 +50,7 @@ function reviewSupportDraft(){
  if(supportDraft.fingerprint!==JSON.stringify({config,employees})){supportMessage('Os dados mudaram desde a análise. Prepare uma nova prévia para não aplicar uma versão desatualizada.');supportDraft=null;return;}
  const draft=supportDraft,d=$('#confirmDialog');
  d.innerHTML=`<div class="dialog-head"><h2 id="confirmDialogTitle">Aplicar prévia na montagem?</h2><button class="icon-button" data-close="confirmDialog" aria-label="Fechar">×</button></div><div class="dialog-body"><p>${draft.plan.positions.length} posições · ${esc(S.duration(draft.plan.workMinutes))} efetivas.</p><p>${draft.plan.gaps.length} lacunas e ${draft.plan.warnings.length} avisos. Confira a tabela completa na página de montagem antes de confirmar a escala.</p><p>Aplicar substitui apenas a distribuição atual. O histórico não é finalizado por esta ação.</p><p id="supportApplyError" role="alert"></p></div><div class="dialog-foot"><button class="button" data-close="confirmDialog">Voltar</button><button class="button primary" id="supportApply">Aplicar e abrir montagem</button></div>`;
- $('#supportApply').onclick=()=>{if(draft.fingerprint!==JSON.stringify({config,employees})){$('#supportApplyError').textContent='Os dados mudaram. Feche e prepare uma nova prévia.';return;}result=draft.plan;viewIndex=0;delete config.confirmedId;d.close();supportDraft=null;save();location.hash='schedule';toggleSupport(false);render();notify('Prévia aplicada. Confira a escala antes de confirmar.');};d.showModal();
+ $('#supportApply').onclick=()=>{if(draft.fingerprint!==JSON.stringify({config,employees})){$('#supportApplyError').textContent='Os dados mudaram. Feche e prepare uma nova prévia.';return;}result=draft.plan;viewIndex=0;delete config.confirmedId;d.close();supportDraft=null;supportMessage('Prévia aplicada na montagem. Confira a tabela completa antes de confirmar. O histórico ainda não foi finalizado.');save();location.hash='schedule';toggleSupport(false);render();notify('Prévia aplicada. Confira a escala antes de confirmar.');};d.showModal();
 }
 function diagnoseSupportSystem(){
  toggleSupport(true);
