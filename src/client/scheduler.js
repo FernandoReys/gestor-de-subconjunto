@@ -5,11 +5,11 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const stations = [
-    { id:'20', name:'BSD', description:'Coletor · início do subconjunto', limit:null },
-    { id:'30', name:'Clampe', description:'Posto permitido a pessoas com restrição sem cola', limit:null },
+    { id:'20', name:'BSD', description:'Coletor · início do subconjunto', limit:120 },
+    { id:'30', name:'Clampe', description:'Posto permitido a pessoas com restrição sem cola', limit:120 },
     { id:'40', name:'Preckoff', description:'Rodízio a cada 60 minutos trabalhados', limit:60 },
-    { id:'50', name:'Y', description:'Etapa intermediária do subconjunto', limit:null },
-    { id:'60', name:'Agulha', description:'Etapa anterior à contagem', limit:null },
+    { id:'50', name:'Y', description:'Etapa intermediária do subconjunto', limit:120 },
+    { id:'60', name:'Agulha', description:'Etapa anterior à contagem', limit:120 },
     { id:'70', name:'Contagem', description:'Rodízio a cada 120 minutos trabalhados', limit:120 }
   ];
   function minutes(value) {
@@ -29,7 +29,7 @@
     return {start,end,breaks,errors,workMinutes:end-start-breaks.reduce((n,b)=>n+b.duration,0)};
   }
   function defaults() {
-    return { date:new Date().toLocaleDateString('en-CA'),start:'14:00',end:'21:54',coffee:'16:00',coffeeDuration:15,lunch:'18:10',lunchDuration:33,rotation:'afterLunch',product:'',shiftName:'Turno A',extraPosts:[],organizerIds:[],fps:[],sectors:['Subconjunto','Linha de Bolsas','Linha de bolsa','Sala de máquinas','Embalagem final','Outros'],shifts:[{id:'00000000-0000-4000-8000-000000000001',name:'Turno A',start:'14:00',end:'21:54'}] };
+    return { date:new Date().toLocaleDateString('en-CA'),start:'14:00',end:'21:54',coffee:'16:00',coffeeDuration:15,lunch:'18:10',lunchDuration:33,rotation:'everyTwoHours',product:'',shiftName:'Turno A',extraPosts:[],organizerIds:[],fps:[],sectors:['Subconjunto','Linha de Bolsas','Linha de bolsa','Sala de máquinas','Embalagem final','Outros'],shifts:[{id:'00000000-0000-4000-8000-000000000001',name:'Turno A',start:'14:00',end:'21:54'}] };
   }
   function sampleEmployees() {
     const names=['Fernando','Rodrigo','Ricardo','Rogerio','Mario','Maria'];
@@ -39,6 +39,7 @@
   function eligible(person,station,date=new Date().toLocaleDateString('en-CA')) {
     // Adhesive exposure has not been validated from a real FP. Restricted
     // demo employees may only use the explicitly permitted clampe post.
+    if(station.additional)return person.active&&person.present&&(person.role||'Operador')==='Operador'&&!person.noGlue&&!person.fixed;
     const restricted=(person.restrictions||[]).some(r=>r.stationId===station.id && (!r.expiresOn || r.expiresOn>=date));
     return person.active && person.present && (person.role||'Operador')==='Operador' && person.allowed.includes(station.id) && !restricted && (!person.noGlue || station.id==='30') && (!person.fixed || person.fixed===station.id);
   }
@@ -55,15 +56,15 @@
   function extraSlots(config){return (Array.isArray(config.extraPosts)?config.extraPosts:[]).flatMap(p=>Array.from({length:Number(p.requiredCount)||1},(_,i)=>({id:p.id,key:`${p.id}-${i+1}`,name:p.name,slot:i+1,notes:p.notes||'',employeeId:p.employeeIds?.[i]||(!i?p.employeeId:'')||''})));}
   function generate(config, employees) {
     const time=shift(config), errors=[...time.errors];
-    const positions=slots(config);
-    if(!positions.length||positions.length>12)errors.push('A FP precisa definir entre 1 e 12 posições válidas.');
+    const positions=[...slots(config),...extraSlots(config).map(p=>({...p,additional:true,limit:120}))];
+    if(!positions.length||positions.length>10)errors.push('A linha aceita entre 1 e 10 posições, incluindo postos adicionais.');
     const locks=config.locks||{};
     if(Object.keys(locks).some(key=>!positions.some(s=>s.key===key))||new Set(Object.values(locks)).size!==Object.values(locks).length)errors.push('Há fixações inválidas ou repetidas.');
+    config={...config,manualAssignments:{...Object.fromEntries(extraSlots(config).filter(p=>p.employeeId).map(p=>[p.key,p.employeeId])),...(config.manualAssignments||{})}};
     const initialAssignments=Object.entries(config.manualAssignments||{}).filter(([,id])=>id);
     if(new Set(initialAssignments.map(([,id])=>id)).size!==initialAssignments.length)errors.push('O mesmo operador foi selecionado em duas posições iniciais.');
     const extras=extraSlots(config);
-    const reserved=new Set(extras.map(p=>p.employeeId).filter(Boolean));
-    const people=employees.filter(p=>p.active&&p.present&&(p.role||'Operador')==='Operador'&&!reserved.has(p.id));
+    const people=employees.filter(p=>p.active&&p.present&&(p.role||'Operador')==='Operador');
     if(people.length>20) errors.push('Esta simulação aceita até 20 pessoas presentes por vez.');
     if(!people.length) errors.push('Selecione pelo menos uma pessoa presente.');
     if(new Set(people.map(p=>p.id)).size!==people.length) errors.push('Há identificadores de funcionários duplicados.');
@@ -92,9 +93,10 @@
           if(worked===0&&config.manualAssignments?.[s.key]&&p.id!==config.manualAssignments[s.key])return false;
           if(Object.entries(locks).some(([key,id])=>key!==s.key&&id===p.id))return false;
           if(!eligible(p,s,config.date)||(fixed.length&&!fixed.some(x=>x.i===i))) return false;
-          if(i===current[j]) return !due[j] && (!general||!!p.fixed||locks[s.key]===p.id);
-          return !visited[i].has(s.key);
-        }).map(({p,i})=>({i,score:1000000 + (current[j]===i?3000:0) + (p.fixed||locks[s.key]===p.id?10000:0) + (worked===0&&(config.manualAssignments?.[s.key]===p.id||p.initial===s.id)?1500:0) - total[i] - i*.01}));
+          if(current[j]!==null&&!due[j])return i===current[j];
+          if(i===current[j])return false;
+          return !visited[i].has(s.id);
+        }).map(({p,i})=>({i,score:1000000 + (s.id!=='40'&&visited[i].has('40')?5000:0) + (current[j]===i?3000:0) + (p.fixed||locks[s.key]===p.id?10000:0) + (worked===0&&(config.manualAssignments?.[s.key]===p.id||p.initial===s.id)?1500:0) - total[i] - i*.01}));
       });
       // Track occupied positions instead of used people: at most 2^12 states.
       const size=1<<positions.length,choices=[],byPerson=people.map((_,i)=>[]);
@@ -116,14 +118,14 @@
       const pause=time.breaks.find(b=>t>=b.start&&t<b.end);
       let reason='Continuidade';
       if(!pause){
-        const general=config.rotation==='everyTwoHours' ? worked>0&&worked-lastGeneral>=120 : t===time.breaks[1].end || (t>time.breaks[1].end&&worked-lastGeneral>=120);
+        const general=false; // Each position has its own 120/60 effective-minute clock.
         const due=positions.map((s,j)=>current[j]!==null&&s.limit!==null&&continuous[j]>=s.limit);
         if(t===time.start||general||due.some(Boolean)){
           const next=choose(due,general);
           reason=t===time.start?'Início do turno':general?'Rodízio geral':due.map((d,j)=>d?positions[j].name:'').filter(Boolean).join(' + ');
           for(let j=0;j<positions.length;j++){
             if(next[j]!==current[j])continuous[j]=0;
-            if(next[j]!==null)visited[next[j]].add(positions[j].key);
+            if(next[j]!==null)visited[next[j]].add(positions[j].id);
           }
           current=next;
           if(general)lastGeneral=worked;

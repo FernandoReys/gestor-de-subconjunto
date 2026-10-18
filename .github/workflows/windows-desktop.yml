@@ -1,7 +1,5 @@
 name: Windows Desktop
 on:
-  push:
-    branches: [feature/windows-desktop-offline]
   workflow_dispatch:
 permissions:
   contents: read

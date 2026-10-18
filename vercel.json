@@ -23,6 +23,14 @@
     {
       "src": "api/calendar-export.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/runtime.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/support.js",
+      "use": "@vercel/node"
     }
   ],
   "buildCommand": "npm run build",
