@@ -94,7 +94,7 @@ O workflow de validação foi estendido à nova branch, incluindo testes de logi
 - Instalação das dependências locais de fonte/ícones, build, lint e typecheck aprovados.
 - 58 testes de backend/domínio aprovados: autenticação, permissões, SQL, escala, fila offline, conflitos, OpenAI Responses, OAuth/tokens e política de cabeçalhos.
 - Novos testes UI preparados: login HTTP real contra SQL descartável, credencial inválida, cookie, reload, logout/revogação, rota protegida, teclado, recuperação, CSP, cinco viewports e temas.
-- O primeiro harness de captura Electron falhou com UnknownVizError; foi corrigido e o teste completo passou localmente, conforme detalhado abaixo. O CI da correção ainda precisa ser confirmado.
+- O primeiro harness de captura Electron falhou com UnknownVizError; foi corrigido e o teste completo passou localmente, conforme detalhado abaixo. O CI da correção foi confirmado com sucesso no runner Windows, conforme resultado final abaixo.
 - Não há comprovação de aviso externo eliminado antes da publicação e testes efetivos do Preview. Verificação oficial Google, cadeia TLS independente e governança LGPD continuam etapas externas pendentes.
 
 ## Resultado da revisão de interface
@@ -119,3 +119,11 @@ Interface: src/client/index.html, src/client/login.css, src/client/login-ui.js, 
 Capturas verificadas do mesmo código com autenticação de teste habilitada: [desktop](assets/login-desktop.png) e [celular](assets/login-mobile.png). Não mostram dados de produção.
 
 A sondagem HTTP externa do Preview foi redirecionada à proteção Vercel. Seus headers pertencem à página de proteção, e não foram usados como comprovação dos headers do aplicativo. O navegador autenticado abriu a interface real; a verificação dos headers está coberta pelos testes locais e ainda requer inspeção autenticada da implantação final.
+
+## Resultado final de homologação técnica
+
+Código implantado: 5e2ff4eee8f07bbdd9ecd6e329236ceba6d8819a, branch feature/login-profissional. Preview Ready no projeto correto: https://gestor-desktop-test-e3qejj4yp-fernando-8621.vercel.app/ . Abertura real verificada no navegador.
+
+GitHub Actions https://github.com/FernandoReys/gestor-de-subconjunto/actions/runs/39276336988 : job web concluído com sucesso. npm ci, lint, typecheck, 58 testes, build e três suítes de interface passaram, incluindo regressão operacional, segurança/perfis e login. O harness agora também aguarda a conclusão assíncrona do redimensionamento no Windows antes de conferir o viewport. Capturas desktop, notebook, tablet, celular, tela estreita e tema escuro foram geradas. Empacotamento Windows foi intencionalmente omitido.
+
+O Preview mantém a limitação de autenticação 503 descrita acima. Não houve teste de credenciais reais nesse ambiente, autorização Google de uma conta real ou chamada OpenAI paga nesta etapa. A ausência de erros de aplicativo no console observado não substitui esses testes. Produção, main e banco real permanecem preservados. A aprovação visual não encerra as pendências de configuração e homologação externa.
