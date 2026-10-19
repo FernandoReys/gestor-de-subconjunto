@@ -74,6 +74,8 @@ Fontes oficiais consultadas:
 - https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification
 - https://developers.google.com/workspace/calendar/api/auth
 - https://vercel.com/docs/project-configuration/git-configuration
+- https://www.gov.br/anpd/pt-br/assuntos/titular-de-dados
+- https://www.gov.br/anpd/pt-br/assuntos/assuntos-internacionais/transferencia-internacional-de-dados
 
 ## Domínio próprio
 
@@ -92,5 +94,28 @@ O workflow de validação foi estendido à nova branch, incluindo testes de logi
 - Instalação das dependências locais de fonte/ícones, build, lint e typecheck aprovados.
 - 58 testes de backend/domínio aprovados: autenticação, permissões, SQL, escala, fila offline, conflitos, OpenAI Responses, OAuth/tokens e política de cabeçalhos.
 - Novos testes UI preparados: login HTTP real contra SQL descartável, credencial inválida, cookie, reload, logout/revogação, rota protegida, teclado, recuperação, CSP, cinco viewports e temas.
-- A renderização Electron headless neste container falhou com UnknownVizError; o mesmo fluxo deve ser executado no runner Windows do CI. Não foi atribuído esse erro ao site público.
+- O primeiro harness de captura Electron falhou com UnknownVizError; foi corrigido e o teste completo passou localmente, conforme detalhado abaixo. O CI da correção ainda precisa ser confirmado.
 - Não há comprovação de aviso externo eliminado antes da publicação e testes efetivos do Preview. Verificação oficial Google, cadeia TLS independente e governança LGPD continuam etapas externas pendentes.
+
+## Resultado da revisão de interface
+
+O teste inicial de screenshots encontrou UnknownVizError ao capturar uma janela offscreen com capturePage. Corrigido o harness para usar paint/invalidate, conforme o fluxo oficial Electron; as capturas agora aguardam frame novo, dimensões corretas e fim das animações. Isso não enfraquece o sandbox do aplicativo entregue. O comando headless local de testes usa no-sandbox apenas no processo descartável deste container; a aplicação desktop e o CI mantêm sandbox no renderer.
+
+Teste UI local completo aprovado com SQL descartável: entrada válida, rejeição de senha inválida, cookie HttpOnly, sessão após reload, logout com revogação SQL, roteamento #overview, proteção de dados, recuperação antes do login, teclado/Tab, CSP sem violações e viewports 1920x1080, 1366x768, 768x1024, 390x844 e 320x740. Capturas visuais revisadas em desktop/celular; refinados espaçamento no título mobile, azul principal do botão, contraste do placeholder e alvos de toque dos links.
+
+Primeiro Preview criado manualmente no projeto gestor-desktop-test, branch feature/login-profissional, commit ba7ff70, Ready:
+https://gestor-desktop-test-fmo9roy76-fernando-8621.vercel.app/
+
+Inspeção real em Chrome: título correto, imagens carregadas, campos com autocomplete, links de privacidade/termos e sem overflow horizontal em 1363x936. Não houve erro de CSP registrado nessa inspeção; os únicos erros capturados vieram de uma extensão do navegador de testes, não do código do sistema.
+
+**Limitação do Preview:** /api/auth.js responde 503 porque as credenciais estão configuradas em Production, não no novo ambiente Preview. Não se copiaram segredos para outro escopo nem se criou conta permanente de teste. O login funcional foi validado contra o SQL descartável, não contra usuários reais no Preview. Para testar uma conta real nesse Preview é necessário configurar credenciais autorizadas para esse ambiente (preferencialmente restritas à branch e com banco de teste) antes da homologação final.
+
+Não afirmar que os avisos de verificação Google foram eliminados: o backend não decide a aprovação de marca, domínios ou consentimento. A versão pública permanece intacta para revisão do Preview, e o novo domínio não foi contratado nem configurado.
+
+## Arquivos
+
+Interface: src/client/index.html, src/client/login.css, src/client/login-ui.js, src/client/app.js e src/client/security-ui.js. Backend: api/auth.js (apenas capacidade pública da recuperação, sem alteração de credenciais). Servidor/proteções: server.js, shared/security-headers.cjs e vercel.json. Build/dependências: scripts/build.js, package.json e package-lock.json. Conteúdo público: public/favicon.svg, public/legal.css, public/sobre.html, public/privacidade.html e public/termos.html. Validação: tests/login-ui-smoke.cjs, tests/security-headers.test.js e .github/workflows/web-validation.yml. Este diagnóstico: docs/login-seguranca-validacao.md.
+
+Capturas verificadas do mesmo código com autenticação de teste habilitada: [desktop](assets/login-desktop.png) e [celular](assets/login-mobile.png). Não mostram dados de produção.
+
+A sondagem HTTP externa do Preview foi redirecionada à proteção Vercel. Seus headers pertencem à página de proteção, e não foram usados como comprovação dos headers do aplicativo. O navegador autenticado abriu a interface real; a verificação dos headers está coberta pelos testes locais e ainda requer inspeção autenticada da implantação final.
