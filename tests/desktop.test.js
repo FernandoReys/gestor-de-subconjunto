@@ -1,5 +1,6 @@
 'use strict';
 const test = require('node:test');
+const crypto=require('node:crypto');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -64,4 +65,19 @@ test('server validation excludes cleartext, embedded credentials and URL paths',
   const { validateServer } = require('../desktop/config.cjs');
   for (const value of ['http://example.com', 'https://user:pass@example.com', 'https://example.com/path', 'file:///test']) assert.throws(() => validateServer(value));
   assert.equal(validateServer('https://example.com/'), 'https://example.com');
+});
+
+test('offline policy permits drafts and refuses administrative data or approvals',()=>{
+ const {assertDraftOnly}=require('../shared/offline-policy.cjs');const before={employees:[],config:{fps:[],history:[]}};
+ assert.equal(assertDraftOnly(before,{employees:[],config:{fps:[],date:'2026-10-19',history:[{id:'draft',status:'Rascunho'}]}}),true);
+ assert.throws(()=>assertDraftOnly(before,{employees:[{name:'new'}],config:before.config}));
+ assert.throws(()=>assertDraftOnly(before,{employees:[],config:{fps:[],history:[{id:'a',status:'Aprovada'}]}}));
+});
+test('encrypted local storage migrates existing values and keeps outbox readable only with the codec',async()=>{
+ const file=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'gestor-encryption-')),'data.sqlite');
+ const first=new Store(file);first.save({employees:[{name:'Private employee marker'}],config:{}});first.close();
+ const key=crypto.randomBytes(32);const codec={encrypt(text){const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',key,iv),body=Buffer.concat([cipher.update(text,'utf8'),cipher.final()]);return Buffer.concat([iv,cipher.getAuthTag(),body]).toString('base64');},decrypt(text){const bytes=Buffer.from(text,'base64'),cipher=crypto.createDecipheriv('aes-256-gcm',key,bytes.subarray(0,12));cipher.setAuthTag(bytes.subarray(12,28));return Buffer.concat([cipher.update(bytes.subarray(28)),cipher.final()]).toString();}};
+ const secured=new Store(file,codec);assert.equal(secured.get('state').employees[0].name,'Private employee marker');assert.ok(secured.head().body.includes('Private employee marker'));secured.close();
+ assert.equal(fs.readFileSync(file).includes(Buffer.from('Private employee marker')),false);assert.throws(()=>new Store(file));
+ const again=new Store(file,codec);assert.equal(again.get('state').employees.length,1);again.close();
 });

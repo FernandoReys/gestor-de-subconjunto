@@ -22,6 +22,8 @@ jobs:
         run: node node_modules/electron/install.js
       - name: Test persistence, PostgreSQL CAS and existing features
         run: npm test
+      - run: npm run lint
+      - run: npm run typecheck
       - run: npm run build
       - name: Rebuild SQLite for Electron
         run: npm run desktop:rebuild

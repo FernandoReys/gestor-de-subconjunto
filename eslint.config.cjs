@@ -1,0 +1,2 @@
+const globals=require('globals');
+module.exports=[{ignores:['node_modules/**','dist/**','release/**','verification/**','public/**']},{files:['**/*.js','**/*.cjs'],languageOptions:{ecmaVersion:'latest',sourceType:'commonjs',globals:{...globals.node,...globals.browser}},rules:{'no-dupe-args':'error','no-dupe-keys':'error','no-duplicate-case':'error','no-empty-character-class':'error','no-unreachable':'error','no-unsafe-finally':'error','valid-typeof':'error','constructor-super':'error','no-class-assign':'error','no-const-assign':'error'}}];

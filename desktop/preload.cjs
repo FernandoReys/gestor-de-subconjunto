@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('gestorDesktop', {
   retry: () => ipcRenderer.invoke('desktop:retry'),
   resolve: (choice, revision) => ipcRenderer.invoke('desktop:resolve', choice, revision),
   importWeb: () => ipcRenderer.invoke('desktop:import'),
+  checkUpdate:()=>ipcRenderer.invoke('desktop:update-check'),
   backup: () => ipcRenderer.invoke('desktop:backup'),
   onStatus: callback => { const listener = (_event, value) => callback(value); ipcRenderer.on('desktop:status', listener); return () => ipcRenderer.removeListener('desktop:status', listener); }
 });

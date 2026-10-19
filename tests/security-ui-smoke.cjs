@@ -1,0 +1,31 @@
+'use strict';
+const {app,BrowserWindow,session}=require('electron'),{PGlite}=require('@electric-sql/pglite'),Module=require('node:module'),crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+let db,server;
+const timer=setTimeout(()=>{console.error('SECURITY UI timeout');app.exit(1);},60000);
+app.whenReady().then(async()=>{try{
+ db=new PGlite();for(const file of ['003_desktop_sync.sql','005_identity_audit.sql'])await db.exec(fs.readFileSync(path.join(__dirname,'../db/migrations',file),'utf8'));
+ const original=Module._load;Module._load=function(id,...args){if(id==='@neondatabase/serverless')return {neon:()=>{const sql=async(strings,...values)=>(await db.query(strings.reduce((s,x,i)=>s+(i?'$'+i:'')+x,''),values)).rows;sql.transaction=queries=>Promise.all(queries);return sql;}};return original.call(this,id,...args);};
+ process.env.AUTH_USERS_ENABLED='1';process.env.DESKTOP_SYNC_ENABLED='1';process.env.DESKTOP_DATABASE_URL='postgres://isolated-ui-test';process.env.AUTH_SESSION_SECRET=crypto.randomBytes(40).toString('hex');process.env.PILOT_ADMIN_PASSWORD_HASH=crypto.randomBytes(16).toString('hex')+'$'+crypto.randomBytes(64).toString('hex');delete process.env.DATABASE_URL;delete process.env.VERCEL_OIDC_TOKEN;delete process.env.AI_GATEWAY_API_KEY;
+ server=require('../server');const auth=require('../api/auth-core');Module._load=original;
+ const admin={id:crypto.randomUUID(),username:'admin',role:'Administrador',version:0,sid:crypto.randomUUID()},assistant={id:crypto.randomUUID(),username:'assistant',role:'Assistente',version:0,sid:crypto.randomUUID()};
+ for(const u of [admin,assistant]){await db.query('INSERT INTO gestor_users(id,username,full_name,password_hash,role) VALUES($1,$2,$2,$3,$4)',[u.id,u.username,'not-a-real-hash',u.role]);await db.query("INSERT INTO gestor_sessions(id,user_id,version,expires_at) VALUES($1,$2,0,now()+interval '1 hour')",[u.sid,u.id]);}
+ const S=require('../src/client/scheduler'),config=S.defaults(),fp={id:crypto.randomUUID(),name:'Teste isolado',product:'Teste',variation:'Teste',fp:'FP TESTE',revision:'01',market:'Nacional',status:'Ativa',stations:S.stations.map(s=>({id:s.id,name:s.name,requiredCount:1,notes:''}))};config.fps=[fp];config.product=fp.id;config.date='2026-10-19';
+ const employees=Array.from({length:10},(_,i)=>({id:crypto.randomUUID(),name:'Operador isolado '+i,role:'Operador',active:true,present:true,noGlue:false,fixed:'',initial:'',allowed:S.stations.map(s=>s.id)}));employees.push({id:crypto.randomUUID(),name:'Organizador isolado',role:'Assistente',active:true,present:true,noGlue:false,fixed:'',allowed:S.stations.map(s=>s.id)});config.organizerIds=[employees.at(-1).id];
+ const document={config,employees,generated:false};await db.query('SELECT desktop_push($1,0,$2,$3,$4,now())',[crypto.randomUUID(),JSON.stringify(document),'admin',crypto.randomUUID()]);
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
+ const login=async user=>{const parts=auth.cookieOptions({headers:{}},false,user).split(';')[0].split('=');await session.defaultSession.cookies.set({url:origin,name:parts[0],value:parts[1],httpOnly:true,path:'/'});};await login(admin);
+ const win=new BrowserWindow({width:1440,height:1000,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.on('console-message',(_event,...args)=>console.log('RENDERER',...args));
+ const run=code=>win.webContents.executeJavaScript(code),wait=predicate=>run(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const tick=()=>{if(${predicate})resolve();else if(Date.now()>end)reject(new Error('Wait failed'));else setTimeout(tick,30);};tick();})`);
+ await win.loadURL(origin);await wait("storageMode==='sql'&&securityV2");
+ assert.equal(await run(`currentUser.role`),'Administrador');assert.equal(await run(`document.querySelectorAll('.dash-chart').length`),2);assert.equal(await run(`document.documentElement.scrollWidth<=innerWidth`),true);
+ fs.mkdirSync(path.join(__dirname,'../verification'),{recursive:true});fs.writeFileSync(path.join(__dirname,'../verification/web-industrial-dashboard.png'),(await win.webContents.capturePage()).toPNG());
+ await run(`location.hash='users'`);await wait("document.querySelector('[data-user-edit]')");assert.equal(await run(`document.querySelectorAll('[data-user-edit]').length`),2);
+ await run(`result=buildResult();saveSchedule(true)`);await wait("config.history?.length===1&&config.history[0].createdBy");assert.equal(await run(`config.history[0].status`),'Aguardando aprovação');
+ await run(`location.hash='history';render();historyDetails(config.history[0].id);reviewApproval(config.history[0].id,'approve');document.querySelector('#confirmForm').elements.confirmation.value='APROVAR';document.querySelector('#confirmForm').requestSubmit()`);await wait("config.history?.[0]?.status==='Aprovada'");
+ assert.equal(await run(`config.history[0].approvedBy`),admin.id);
+ await run(`location.hash='audit'`);await wait("auditRows.length>0");assert.equal(await run(`auditRows.some(x=>x.action==='approve')`),true);fs.writeFileSync(path.join(__dirname,'../verification/web-industrial-audit.png'),(await win.webContents.capturePage()).toPNG());
+ await login(assistant);await win.reload();await wait("storageMode==='sql'&&currentUser?.role==='Assistente'");assert.equal(await run(`!!document.querySelector('#nav a[href="#users"]')`),false);
+ const denied=await run(`fetch('/api/users.js').then(r=>r.status)`);assert.equal(denied,403);await run(`location.hash='employees'`);await wait("document.querySelector('[data-action=\"new-employee\"]')");assert.equal(await run(`document.querySelector('[data-action="new-employee"]').disabled`),true);
+ win.setSize(390,844);await run(`location.hash='overview';render()`);assert.equal(await run(`document.documentElement.scrollWidth<=innerWidth`),true);
+ console.log('SECURITY UI OK: SQL dashboard, individual role, submission, online recomputation/approval, audit, assistant restrictions, mobile layout');clearTimeout(timer);server.close();await db.close();app.exit(0);
+ }catch(e){console.error(e);clearTimeout(timer);server?.close();await db?.close();app.exit(1);}});

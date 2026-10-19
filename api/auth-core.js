@@ -9,30 +9,30 @@ function verifyPassword(password) {
   if (parts.length !== 2 || !/^[0-9a-f]{32}$/.test(parts[0]) || !/^[0-9a-f]{128}$/.test(parts[1]) || typeof password !== 'string' || password.length > 256) return false;
   return crypto.timingSafeEqual(crypto.scryptSync(password, Buffer.from(parts[0], 'hex'), 64), Buffer.from(parts[1], 'hex'));
 }
-function signedSession() {
-  const data = Buffer.from(JSON.stringify({ sub: 'fernando', exp: Math.floor(Date.now() / 1000) + TTL })).toString('base64url');
+function signedSession(user) {
+  const data = Buffer.from(JSON.stringify({ sub: user?.username||'fernando', ...(user?.id?{uid:user.id,sid:user.sid,ver:user.version}:{}), exp: Math.floor(Date.now() / 1000) + TTL })).toString('base64url');
   return `${data}.${crypto.createHmac('sha256', process.env.AUTH_SESSION_SECRET).update(data).digest('base64url')}`;
 }
 function session(req) {
   if (!configured()) return null;
   const cookie = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith(`${COOKIE}=`));
   const [data, signature, extra] = (cookie?.slice(COOKIE.length + 1) || '').split('.');
-  if (!data || !signature || extra || data.length > 256) return null;
+  if (!data || !signature || extra || data.length > 1024) return null;
   const expected = crypto.createHmac('sha256', process.env.AUTH_SESSION_SECRET).update(data).digest();
   let actual; try { actual = Buffer.from(signature, 'base64url'); } catch { return null; }
   if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return null;
-  try { const payload = JSON.parse(Buffer.from(data, 'base64url').toString()); return payload.sub === 'fernando' && Number.isSafeInteger(payload.exp) && payload.exp > Date.now() / 1000 ? { username: 'fernando', role: 'Administrador' } : null; } catch { return null; }
+  try { const payload = JSON.parse(Buffer.from(data, 'base64url').toString()); return typeof payload.sub==='string'&&Number.isSafeInteger(payload.exp)&&payload.exp>Date.now()/1000?payload:null; } catch { return null; }
 }
-function cookieOptions(req, clear = false) {
+function cookieOptions(req, clear = false, user) {
   const secure = process.env.VERCEL || req.headers['x-forwarded-proto'] === 'https';
-  return `${COOKIE}=${clear ? '' : signedSession()}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${clear ? 0 : TTL}${secure ? '; Secure' : ''}`;
+  return `${COOKIE}=${clear ? '' : signedSession(user)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${clear ? 0 : TTL}${secure ? '; Secure' : ''}`;
 }
 function sameOrigin(req) {
   try { const origin = new URL(req.headers.origin); return origin.host === req.headers.host && ['http:', 'https:'].includes(origin.protocol); } catch { return false; }
 }
-function authorize(req, res) {
+async function authorize(req, res) {
   if (!configured()) { res.status(503).json({ error: 'Acesso ainda não configurado.' }); return null; }
-  const user = session(req);
+  let user;try{user=await currentUser(req);}catch{res.status(503).json({error:'Não foi possível validar a sessão no servidor.'});return null;}
   if (!user) { res.status(401).json({ error: 'Faça login para continuar.' }); return null; }
   if (req.method !== 'GET' && !sameOrigin(req)) { res.status(403).json({ error: 'Origem não permitida.' }); return null; }
   return user;
@@ -45,4 +45,5 @@ function rateLimit(req) {
   attempts.set(key, { count: value.count + 1, until: value.until });
   return true;
 }
-module.exports = { configured, verifyPassword, session, cookieOptions, sameOrigin, authorize, rateLimit };
+async function currentUser(req){const payload=session(req);if(!payload)return null;if(require('./identity').enabled())return require('./identity').resolve(payload);return payload.sub==='fernando'?{username:'fernando',role:'Administrador'}:null;}
+module.exports = { configured, verifyPassword, session, currentUser, cookieOptions, sameOrigin, authorize, rateLimit };

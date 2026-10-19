@@ -31,6 +31,18 @@
     {
       "src": "api/support.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/users.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/audit.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/approvals.js",
+      "use": "@vercel/node"
     }
   ],
   "buildCommand": "npm run build",

@@ -7,9 +7,9 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Método inválido.' });
-  const user = authorize(req, res);
+  const user = await authorize(req, res);
   if (!user) return;
-  if (user.role !== 'Administrador') return res.status(403).json({ error: 'Sem permissão de sincronização.' });
+  if (!require('./identity').enabled() && user.role !== 'Administrador') return res.status(403).json({ error: 'Sem permissão de sincronização.' });
   // Explicit, separate connection: never silently migrate/write the production web DB.
   if (process.env.DESKTOP_SYNC_ENABLED !== '1' || !process.env.DESKTOP_DATABASE_URL) return res.status(503).json({ error: 'Sincronização desktop não habilitada neste servidor.' });
   try {
@@ -27,10 +27,11 @@ module.exports = async function handler(req, res) {
     try {
       body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       if (!body || !uuid.test(body.id) || !uuid.test(body.deviceId) || !Number.isSafeInteger(body.baseRevision) || body.baseRevision < 0 || typeof body.createdAt !== 'string' || !Number.isFinite(Date.parse(body.createdAt))) throw new Error('Alteração inválida.');
-      validateState(body.state);
+      validateState(body.state,require('./identity').enabled());
     } catch { return res.status(400).json({ error: 'Alteração inválida ou muito grande.' }); }
-    const rows = await sql`SELECT desktop_push(${body.id}::uuid, ${body.baseRevision}, ${JSON.stringify(body.state)}::jsonb, ${user.username}, ${body.deviceId}::uuid, ${body.createdAt}::timestamptz) AS result`;
+    const rows = require('./identity').enabled()?await sql`SELECT gestor_push(${body.id}::uuid,${body.baseRevision},${JSON.stringify(body.state)}::jsonb,${user.id}::uuid,${user.version},${body.deviceId}::uuid,${body.createdAt}::timestamptz,${['windows','assistant'].includes(body.source)?body.source:'web'}) AS result`:
+    await sql`SELECT desktop_push(${body.id}::uuid, ${body.baseRevision}, ${JSON.stringify(body.state)}::jsonb, ${user.username}, ${body.deviceId}::uuid, ${body.createdAt}::timestamptz) AS result`;
     const result = rows[0].result;
-    return res.status(result.conflict ? 409 : 200).json(result);
+    return res.status(result.unauthorized?401:result.forbidden?403:result.conflict ? 409 : 200).json(result.forbidden?{...result,error:'Seu perfil não permite estas alterações. A versão local foi preservada.'}:result);
   } catch { return res.status(503).json({ error: 'Sincronização indisponível. Verifique o banco de teste e a migração 003. Seus dados locais foram preservados.' }); }
 };

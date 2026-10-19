@@ -1,6 +1,6 @@
 {
   "name": "gestor-de-subconjunto",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "description": "Planejamento de produ\u00e7\u00e3o com armazenamento offline e sincroniza\u00e7\u00e3o revisada.",
   "scripts": {
@@ -10,7 +10,9 @@
     "desktop": "npm run build && electron .",
     "desktop:pack": "npm run build && electron-builder --win nsis --x64 --publish never",
     "desktop:rebuild": "electron-builder install-app-deps",
-    "test:electron": "electron tests/electron-smoke.cjs"
+    "test:electron": "electron tests/electron-smoke.cjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",
@@ -21,7 +23,10 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.10",
     "electron": "^42.11.15",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "typescript": "7.0.2"
   },
   "main": "desktop/main.cjs",
   "author": "Fernando Reis",

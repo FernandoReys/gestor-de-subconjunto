@@ -7,7 +7,7 @@ const scopes=['https://www.googleapis.com/auth/calendar.events'];
 module.exports=async function handler(req,res){
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(!['GET','POST'].includes(req.method))return res.status(405).json({error:'Método inválido.'});
- const user=authorize(req,res);if(!user)return;if(user.role!=='Administrador')return res.status(403).json({error:'Acesso não permitido.'});
+ const user=await authorize(req,res);if(!user)return;if(user.role!=='Administrador')return res.status(403).json({error:'Acesso não permitido.'});
  const connector=process.env.GOOGLE_CALENDAR_CONNECTOR,calendarId=process.env.GOOGLE_CALENDAR_ID;
  const configured=Boolean(process.env.DESKTOP_SYNC_ENABLED==='1'&&process.env.DESKTOP_DATABASE_URL&&connector&&calendarId&&process.env.APP_ORIGIN);
  if(!configured)return res.status(req.method==='GET'?200:503).json({configured:false,items:[],error:'Google Agenda ainda não configurado. Registre o aplicativo OAuth Google, vincule o conector e selecione o calendário no servidor.'});

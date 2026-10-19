@@ -19,7 +19,8 @@ module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (!['GET', 'PUT'].includes(req.method)) return res.status(405).json({ error: 'Método inválido.' });
-  if (!authorize(req, res)) return;
+  if (!await authorize(req, res)) return;
+  if(require('./identity').enabled())return res.status(403).json({error:'Use o espaço de trabalho com controle de permissões.'});
   if (process.env.PILOT_PRESENTATION_MODE === '1') return res.status(503).json({ error: 'Modo de apresentação: dados salvos apenas neste navegador.', mode: 'presentation' });
   if (!configured()) return res.status(503).json({ error: 'Banco SQL ainda não configurado.' });
   try {

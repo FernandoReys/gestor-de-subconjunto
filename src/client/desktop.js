@@ -3,7 +3,7 @@ if (window.gestorDesktop) {
   const bridge = window.gestorDesktop;
   const originalFetch = window.fetch.bind(window);
   window.fetch = async (url, options = {}) => {
-    if (!['/api/auth.js', '/api/state.js', '/api/calendar-export.js'].includes(url)) return originalFetch(url, options);
+    if (!['/api/auth.js','/api/state.js','/api/calendar-export.js','/api/runtime.js','/api/support.js','/api/users.js','/api/audit.js','/api/approvals.js','/api/desktop-sync.js'].includes(String(url).split('?')[0])) return originalFetch(url, options);
     const result = await bridge.request(url, { method: options.method || 'GET', body: options.body });
     return new Response(JSON.stringify(result.data), { status: result.status, headers: { 'Content-Type': 'application/json' } });
   };
@@ -12,20 +12,21 @@ if (window.gestorDesktop) {
   const input = document.createElement('input'); input.name = 'server'; input.type = 'url'; input.placeholder = 'https://seu-servidor-de-teste.vercel.app'; input.required = true;
   field.append(input); document.querySelector('#loginForm').prepend(field);
   const bar = document.createElement('section'); bar.className = 'desktop-status'; bar.setAttribute('aria-label', 'Sincronização desktop');
-  bar.innerHTML = '<span id="desktopConnection" role="status" aria-live="polite"></span><button type="button" class="button small" id="desktopRetry">Sincronizar</button><button type="button" class="button small" id="desktopReview" hidden>Revisar versões</button><button type="button" class="button small" id="desktopImport">Importar dados web</button><button type="button" class="button small" id="desktopBackup">Backup SQLite</button>';
+  bar.innerHTML = '<span id="desktopConnection" role="status" aria-live="polite"></span><button type="button" class="button small" id="desktopRetry">Sincronizar</button><button type="button" class="button small" id="desktopReview" hidden>Revisar versões</button><button type="button" class="button small" id="desktopImport">Importar dados web</button><button type="button" class="button small" id="desktopBackup">Backup protegido</button><button type="button" class="button small" id="desktopUpdates">Verificar atualização</button>';
   document.querySelector('main').prepend(bar);
   const dialog = document.createElement('dialog'); dialog.id = 'desktopConflict'; dialog.setAttribute('aria-labelledby', 'desktopConflictTitle'); document.body.append(dialog);
   let status;
   const update = value => {
     status = value;
     document.querySelector('.prototype-tag').textContent = `DESKTOP ${value.version || 'versão não identificada'}`;
-    const names = { online: 'Online', offline: 'Offline', syncing: 'Sincronizando', expired: 'Sessão expirada' };
+    const names = { online: 'Online', offline: 'Offline', syncing: 'Sincronizando', expired: 'Sessão expirada',denied:'Permissão recusada' };
     document.querySelector('#desktopConnection').textContent = `${value.conflict ? 'Conflito · ' : ''}${names[value.connection] || 'Offline'} · ${value.pending} envio pendente · última sincronização: ${value.lastSync ? new Date(value.lastSync).toLocaleString('pt-BR') : 'nenhuma'}${value.error ? ' · ' + value.error : ''}`;
     document.querySelector('#desktopReview').hidden = !value.conflict;
     document.body.dataset.syncConflict = value.conflict ? 'true' : 'false';
   };
   bridge.onStatus(update);
   bridge.status().then(value => { input.value = value.server || ''; update(value); });
+  document.querySelector('#desktopUpdates').onclick=()=>bridge.checkUpdate().then(value=>alert(value.message)).catch(error=>alert(error.message));
   document.querySelector('#desktopRetry').onclick = () => bridge.retry().then(update);
   document.querySelector('#desktopImport').onclick = async () => { if(!confirm('Importar uma cópia dos dados web para o espaço desktop vazio? A versão web será apenas lida.'))return;try{await window.desktopFlush();await bridge.importWeb();location.reload();}catch(error){alert(error.message);}};
   document.querySelector('#desktopBackup').onclick = () => bridge.backup().catch(error => alert(error.message));
@@ -42,6 +43,7 @@ if (window.gestorDesktop) {
       const details = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = label; const pre = document.createElement('pre'); pre.textContent = JSON.stringify(data, null, 2); details.append(summary, pre); dialog.append(details);
     }
     for (const [choice, label] of [['remote', 'Usar versão do servidor'], ['local', 'Enviar versão deste computador']]) {
+      if(choice==='local'&&current.conflict.permissionDenied)continue;
       const button = document.createElement('button'); button.type = 'button'; button.className = 'button'; button.textContent = label;
       button.onclick = async () => {
         if (!confirm('Confirma a escolha para TODO o planejamento? As versões anteriores ficarão no backup local.')) return;

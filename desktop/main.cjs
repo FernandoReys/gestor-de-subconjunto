@@ -19,7 +19,7 @@ function saveCredential(value) {
 }
 async function remote(endpoint, method = 'GET', body) {
   if (!server) throw new Error('Configure o servidor HTTPS para autenticar e sincronizar.');
-  const response = await fetch(server + endpoint, { method, redirect: 'error', signal: AbortSignal.timeout(15000), headers: { Origin: server, 'Content-Type': 'application/json', ...(credential ? { Cookie: credential.cookie } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const response = await fetch(server + endpoint, { method, redirect: 'error', signal: AbortSignal.timeout(endpoint==='/api/auth.js'?5000:15000), headers: { Origin: server, 'Content-Type': 'application/json', ...(credential ? { Cookie: credential.cookie } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const data = await response.json();
   return { response, data };
 }
@@ -34,6 +34,7 @@ async function request(endpoint, options = {}) {
     server = validateServer(body.server || server);
     const oldServer = store.get('server');
     if (oldServer && oldServer !== server && store.get('state')) throw new Error('Este banco pertence a outro servidor. Use outro perfil do Windows.');
+    if(body.action==='reset'){const {response,data}=await remote('/api/auth.js','POST',body);return reply(response.status,data);}
     const { response, data } = await remote('/api/auth.js', 'POST', { username: body.username, password: body.password });
     if (!response.ok) return reply(response.status, data);
     const cookie = response.headers.get('set-cookie')?.split(';')[0];
@@ -43,6 +44,12 @@ async function request(endpoint, options = {}) {
     store.set('server', server);
     await sync.run();
     return reply(200, data);
+  }
+  if(endpoint==='/api/runtime.js')return reply(200,{securityV2:!!credential?.user?.securityV2,version:app.getVersion()});
+  if(endpoint.split('?')[0]==='/api/desktop-sync.js'){if(!active()||method!=='GET')return reply(403,{});const {response,data}=await remote(endpoint);return reply(response.status,data);}
+  if(['/api/support.js','/api/audit.js','/api/users.js','/api/approvals.js'].some(p=>endpoint.split('?')[0]===p)){
+    if(!active())return reply(401,{error:'Autentique novamente online.'});
+    const {response,data}=await remote(endpoint,method,options.body?JSON.parse(options.body):undefined);return reply(response.status,data);
   }
   if(endpoint==='/api/calendar-export.js'){
     if(!active())return reply(401,{error:'Entre no Gestor para conectar o Google Agenda.'});
@@ -60,9 +67,11 @@ async function request(endpoint, options = {}) {
   if (method === 'GET') return reply(200, store.get('state') || { config: {}, employees: [], generated: false });
   if (method !== 'PUT') return reply(405, {});
   const body = JSON.parse(options.body);
-  require('../shared/state-contract.cjs').validateState(body);
-  store.save(body); publish(); void sync.run();
-  return reply(200, { saved: true });
+  require('../shared/state-contract.cjs').validateState(body,true);
+  let verifiedOnline=false;try{const check=await remote('/api/auth.js');if(!check.response.ok){saveCredential(null);return reply(check.response.status,{error:'Acesso revogado ou sessão expirada. Autentique novamente.'});}credential.user=check.data;verifiedOnline=true;}catch{require('../shared/offline-policy.cjs').assertDraftOnly(store.get('state'),body);}
+  body.source=body.source==='assistant'?'assistant':'windows';
+  store.save(body); publish();if(verifiedOnline)await sync.run();else void sync.run();
+  return reply(200, { saved: true,state:store.get('state') });
 }
 function visibleStatus() { const value={...sync.status(),version:app.getVersion()}; if(!active()) value.conflict=value.conflict?{revision:value.conflict.revision}:null; return value; }
 function publish() { if (win && !win.isDestroyed()) win.webContents.send('desktop:status', visibleStatus()); }
@@ -70,12 +79,14 @@ function guard(event) { if (event.sender !== win?.webContents || event.senderFra
 function handle(channel, fn) { ipcMain.handle(channel, async (event, ...args) => { guard(event); return fn(...args); }); }
 app.whenReady().then(async () => {
   const home = app.getPath('userData'); fs.mkdirSync(home, { recursive: true });
-  store = new Store(path.join(home, 'gestor.sqlite'));
+  if(!safeStorage.isEncryptionAvailable())throw new Error('Proteção de dados do Windows indisponível.');
+  store = new Store(path.join(home, 'gestor.sqlite'),{encrypt:text=>safeStorage.encryptString(text).toString('base64'),decrypt:text=>safeStorage.decryptString(Buffer.from(text,'base64'))});
   server = store.get('server');
   try { credential = JSON.parse(safeStorage.decryptString(fs.readFileSync(path.join(home, 'session.bin')))); } catch { credential = null; }
   sync = new Sync(store, async (method, body, cursor) => {
     if (!active()) { const e = new Error('Autenticação online necessária.'); e.status = 401; throw e; }
     const { response, data } = await remote('/api/desktop-sync.js' + (method === 'GET' ? '?cursor=' + cursor : ''), method, body);
+    if(response.status===401)saveCredential(null);
     if (!response.ok && !(response.status === 409 && data.conflict && data.state)) { const e = new Error(data.error || 'Falha na sincronização.'); e.status = response.status; throw e; }
     return data;
   }, value=>{publish();if(value.connection==='online'&&active())void calendarSync?.run();});
@@ -94,6 +105,7 @@ app.whenReady().then(async () => {
   });
   handle('desktop:request', request);
   handle('desktop:calendar-sync',async()=>{if(!active())throw new Error('Entre novamente no Gestor.');await sync.run();if(store.head()||store.get('conflict'))throw new Error('Há alterações pendentes ou conflito no Gestor.');await calendarSync.run();if(calendarSync.error)throw new Error(calendarSync.error);return true;});
+  handle('desktop:update-check',async()=>{if(!active())throw new Error('Entre online para consultar atualizações.');await sync.run();if(store.head()||store.get('conflict'))throw new Error('Conclua a sincronização e resolva os conflitos antes de atualizar.');const {response,data}=await remote('/api/runtime.js');if(!response.ok)throw new Error('Não foi possível consultar a versão.');const current=app.getVersion();if(data.version!==current){await shell.openExternal('https://github.com/FernandoReys/gestor-de-subconjunto/actions/workflows/windows-desktop.yml');return {message:'Versão instalada: '+current+'. Versão do servidor: '+data.version+'. Consulte o artefato do último build aprovado. Feche o Gestor e confira o SHA256 antes de instalar. Nenhuma atualização foi instalada automaticamente.'};}return {message:'Versão instalada: '+current+'. Ela corresponde à versão do servidor.'};});
   handle('desktop:status', () => ({ ...visibleStatus(), server }));
   handle('desktop:retry', async () => { await sync.run(); return visibleStatus(); });
   handle('desktop:resolve', (choice, revision) => { if (!active()) throw new Error('Sessão expirada.'); store.resolve(choice, revision); publish(); return true; });

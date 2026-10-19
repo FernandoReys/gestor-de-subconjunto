@@ -27,6 +27,7 @@ function executeSupportAction(item){
   if(document.querySelector('dialog[open]'))throw new Error('Conclua ou feche o formulário aberto antes de iniciar outra ação.');
   if(item.fingerprint!==supportFingerprint())throw new Error('Os dados mudaram desde o pedido. Envie o pedido novamente para revisar a versão atual.');
   if($('#webConflict')&&!['open_page','diagnose_system'].includes(action.name))throw new Error('Resolva o conflito de salvamento antes de alterar dados pelo chat.');
+  if(securityV2&&((['edit_employee','edit_fp','maintenance'].includes(action.name)&&!canManage())||(action.name==='schedule_production'&&currentUser?.role==='Assistente')))throw new Error('Seu perfil não permite esta ação.');
   const open=page=>{location.hash=page;render();};
   switch(action.name){
    case 'open_page':open(v.page);break;
@@ -64,6 +65,7 @@ function executeSupportAction(item){
   const form=document.querySelector('dialog[open] form');
   if(form){const fingerprint=supportFingerprint();form.addEventListener('submit',event=>{
    if(!authenticated||fingerprint!==supportFingerprint()||$('#webConflict')){event.preventDefault();event.stopImmediatePropagation();notify('Os dados mudaram ou há conflito. Feche e peça uma nova revisão.');}
+   operationSource='assistant';
   },{capture:true});}
   item.used=true;renderSupportMessages();
   if(!['prepare_schedule','diagnose_system'].includes(action.name))supportMessage(action.name==='open_page'?'Página aberta.':'Revisão aberta. Confira os campos e confirme no formulário. Nenhum dado foi salvo ou excluído por esta proposta.');

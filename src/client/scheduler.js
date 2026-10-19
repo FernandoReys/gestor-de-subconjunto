@@ -147,7 +147,7 @@
         }else open=null;
       }
     }
-    return {errors:[],warnings,rows,gaps,positions,workMinutes:time.workMinutes,people:people.map(p=>p.id),totals:Object.fromEntries(people.map((p,i)=>[p.id,total[i]])),complete:gaps.length===0&&warnings.length===0,config:JSON.parse(JSON.stringify(config)),employees:JSON.parse(JSON.stringify(employees))};
+    return {errors:[],warnings,rows,gaps,positions,workMinutes:time.workMinutes,people:people.map(p=>p.id),totals:Object.fromEntries(people.map((p,i)=>[p.id,total[i]])),complete:gaps.length===0&&warnings.length===0,config:JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(config).filter(([key])=>!['history','productionAgenda','fps','sectors','shifts'].includes(key))))),employees:JSON.parse(JSON.stringify(employees))};
   }
   function generatePreckoff(config, employees) {
     const time=shift(config), station=stations.find(s=>s.id==='40');
@@ -163,7 +163,7 @@
     const entries=[], used=new Set(); let active=null;
     function nextEntry(){const person=candidates.find(p=>!used.has(p.id))||null;if(person)used.add(person.id);active={slot:entries.length+1,personId:person?.id||null,minutes:0,fragments:[]};entries.push(active);}
     for(const block of blocks){let at=block.start;while(at<block.end){if(!active||active.minutes>=60)nextEntry();const take=Math.min(60-active.minutes,block.end-at);active.fragments.push({start:at,end:at+take});active.minutes+=take;at+=take;}}
-    return {errors:[],warnings,entries,workMinutes:time.workMinutes,eligible:people.map(p=>p.id),config:JSON.parse(JSON.stringify(config)),employees:JSON.parse(JSON.stringify(employees))};
+    return {errors:[],warnings,entries,workMinutes:time.workMinutes,eligible:people.map(p=>p.id),config:JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(config).filter(([key])=>!['history','productionAgenda','fps','sectors','shifts'].includes(key))))),employees:JSON.parse(JSON.stringify(employees))};
   }
   return {stations,slots,extraSlots,minutes,clock,duration,shift,defaults,sampleEmployees,eligible,generate,generatePreckoff};
 });

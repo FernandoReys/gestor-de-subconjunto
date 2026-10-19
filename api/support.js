@@ -11,7 +11,7 @@ function validateMessages(body){
 module.exports=async(req,res)=>{
  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='POST')return res.status(405).json({error:'Método inválido.'});
- const user=authorize(req,res);if(!user)return;
+ const user=await authorize(req,res);if(!user)return;
  let body,messages,context;try{body=typeof req.body==='string'?JSON.parse(req.body):req.body;messages=validateMessages(body);context=require('../src/client/support-context').validate(body.context);}catch(e){return res.status(400).json({error:e.message});}
  const now=Date.now();for(const[k,v]of requests)if(v.until<now)requests.delete(k);
  const rate=requests.get(user.username)||{count:0,until:now+60000};if(rate.count>=10)return res.status(429).json({error:'Aguarde um minuto antes de enviar mais perguntas.'});rate.count++;requests.set(user.username,rate);

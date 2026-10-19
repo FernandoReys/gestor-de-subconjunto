@@ -29,9 +29,9 @@ if(!window.gestorDesktop){
   if(revision===null)return json(409,{error:'Carregue o planejamento antes de salvar.'});
   const body=JSON.parse(options.body),state={config:body.config,employees:body.employees,generated:!!body.generated};
   if(pending&&JSON.stringify(pending.state)!==JSON.stringify(state)){pending.latestState=state;remember();return json(409,{error:'Há um envio sem confirmação. As novas alterações foram preservadas nesta aba. Recarregue para revisar.'});}
-  if(!pending){pending={id:crypto.randomUUID(),deviceId:crypto.randomUUID(),baseRevision:revision,createdAt:new Date().toISOString(),state};remember();}
+  if(!pending){pending={id:crypto.randomUUID(),deviceId:crypto.randomUUID(),baseRevision:revision,createdAt:new Date().toISOString(),source:body.source||'web',state};remember();}
   const response=await request('/api/desktop-sync.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pending)});
-  const result=await response.json();if(response.ok){revision=result.revision;pending=null;remember();return json(200,{saved:true});}
+  const result=await response.json();if(response.ok){revision=result.revision;pending=null;remember();return json(200,{saved:true,...(result.state?{state:result.state}:{})});}
   if(result.conflict)showConflict(result);
   return json(response.status,result);
  };
