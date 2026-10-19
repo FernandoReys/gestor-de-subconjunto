@@ -1,6 +1,7 @@
 name: Windows Desktop
 on:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
@@ -47,6 +48,32 @@ jobs:
           $hash = Get-FileHash $installer.FullName -Algorithm SHA256
           "$($hash.Hash)  $($installer.Name)" | Out-File release/SHA256SUMS.txt -Encoding utf8
           Get-AuthenticodeSignature $installer.FullName | Format-List Status,StatusMessage
+      - name: Install, launch and uninstall the generated installer
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem release/*Setup.exe).FullName
+          $testInstallPath = Join-Path $env:RUNNER_TEMP 'GestorInstalledCheck'
+          $install = Start-Process -FilePath $installer -ArgumentList @('/S', "/D=$testInstallPath") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw 'Installer execution failed' }
+          $installedExecutable = Join-Path $testInstallPath 'Gestor de Subconjunto.exe'
+          if (!(Test-Path $installedExecutable)) { throw 'Installed executable missing' }
+          $expectedVersion = (Get-Content package.json | ConvertFrom-Json).version
+          $actualVersion = (Get-Item $installedExecutable).VersionInfo.ProductVersion
+          if (!$actualVersion.StartsWith($expectedVersion)) { throw 'Installed application version differs' }
+          $launched = Start-Process -FilePath $installedExecutable -PassThru
+          $ready = $false
+          for ($attempt = 0; $attempt -lt 20; $attempt++) {
+            Start-Sleep -Milliseconds 500
+            $launched.Refresh()
+            if ($launched.HasExited) { throw 'Installed application exited before showing its window' }
+            if ($launched.MainWindowHandle -ne 0) { $ready = $true; break }
+          }
+          if (!$ready) { Stop-Process -Id $launched.Id -Force; throw 'Installed application window did not open' }
+          Stop-Process -Id $launched.Id -Force
+          $uninstaller = Get-ChildItem $testInstallPath -Filter '*Uninstall*.exe'
+          if ($uninstaller.Count -ne 1) { throw 'Uninstaller missing or ambiguous' }
+          $removed = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($removed.ExitCode -ne 0) { throw 'Uninstaller execution failed' }
       - uses: actions/upload-artifact@v4
         with:
           name: Gestor-Windows-x64-${{ github.sha }}

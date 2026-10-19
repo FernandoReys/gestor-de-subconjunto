@@ -30,3 +30,7 @@ jobs:
           path: verification/web-*.png
           if-no-files-found: error
           retention-days: 14
+  windows-package:
+    needs: web
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[windows-build]')
+    uses: ./.github/workflows/windows-desktop.yml
