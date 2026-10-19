@@ -3,10 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, 'dist');
-const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.mp4': 'video/mp4' };
+const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.mp4': 'video/mp4', '.svg':'image/svg+xml', '.woff2':'font/woff2', '.txt':'text/plain; charset=utf-8' };
 const port = Number(process.env.PORT || 3000);
 
 const server = http.createServer(async (req, res) => {
+  require('./shared/security-headers.cjs').apply(res,Boolean(process.env.VERCEL)||req.headers['x-forwarded-proto']==='https');
   let requested;
   try { requested = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { res.writeHead(400); return res.end(); }
   if (['/api/users.js','/api/audit.js','/api/approvals.js','/api/google-callback.js'].includes(requested) || requested === '/api/runtime.js' || requested === '/api/support.js' || requested === '/api/auth.js' || requested === '/api/state.js' || requested === '/api/desktop-sync.js' || requested === '/api/calendar-export.js') {

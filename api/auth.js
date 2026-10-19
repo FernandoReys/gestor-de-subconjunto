@@ -5,7 +5,7 @@ module.exports = async function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (!['GET', 'POST', 'DELETE'].includes(req.method)) return res.status(405).json({ error: 'Método inválido.' });
   if (!auth.configured()) return res.status(503).json({ error: 'Acesso ainda não configurado.' });
-  if (req.method === 'GET') { const user = await auth.currentUser(req); return user ? res.status(200).json({...user,securityV2:require('./identity').enabled()}) : res.status(401).json({ error: 'Faça login para continuar.' }); }
+  if (req.method === 'GET') { const user = await auth.currentUser(req); return user ? res.status(200).json({...user,securityV2:require('./identity').enabled()}) : res.status(401).json({ error: 'Faça login para continuar.',passwordRecovery:require('./identity').enabled() }); }
   if (!auth.sameOrigin(req)) return res.status(403).json({ error: 'Origem não permitida.' });
   if (req.method === 'DELETE') { if(require('./identity').enabled()){const user=await auth.currentUser(req);if(user)await require('./identity').logout(user);} res.setHeader('Set-Cookie', auth.cookieOptions(req, true)); return res.status(200).json({ signedOut: true }); }
   if (!auth.rateLimit(req)) return res.status(429).json({ error: 'Muitas tentativas. Aguarde 15 minutos.' });

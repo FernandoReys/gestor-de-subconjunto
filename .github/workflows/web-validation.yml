@@ -1,7 +1,7 @@
 name: Web validation
 on:
   push:
-    branches: [feature/windows-desktop-offline]
+    branches: [feature/windows-desktop-offline, feature/login-profissional]
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,12 +23,13 @@ jobs:
       - run: node node_modules/electron/install.js
       - run: npx electron tests/web-ui-smoke.cjs
       - run: npx electron tests/security-ui-smoke.cjs
+      - run: npx electron tests/login-ui-smoke.cjs
       - uses: actions/upload-artifact@v4
-        if: success()
+        if: always()
         with:
           name: Web-visual-checks-${{ github.sha }}
           path: verification/web-*.png
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
   windows-package:
     needs: web

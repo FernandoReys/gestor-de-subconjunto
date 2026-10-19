@@ -68,10 +68,11 @@ function showLogin(message=''){
  if(typeof resetSupportSession==='function')resetSupportSession();
  authenticated=false;currentUser=null;clearTimeout(saveTimer);storageMode='loading';config=S.defaults();employees=[];result=null;lastSaved='';
  document.body.classList.add('auth-loading');$('#loginScreen').hidden=false;$('#loginError').textContent=message;
- $('#loginForm').elements.username.focus();
+ $('#app').replaceChildren();$('#loginForm').elements.password.value='';if(typeof updatePasswordVisibility==='function')updatePasswordVisibility(false);$('#loginForm').elements.username.focus();
 }
 async function bootstrap(){
  try{const response=await fetch('/api/auth.js',{cache:'no-store'});if(response.ok){authenticated=true;currentUser=await response.json();try{const runtime=await fetch('/api/runtime.js');securityV2=runtime.ok&&(await runtime.json()).securityV2===true;}catch{}document.body.classList.remove('auth-loading');$('#loginScreen').hidden=true;render();await loadState();return;}
+  const detail=await response.json().catch(()=>({}));if($('#loginRecovery'))$('#loginRecovery').hidden=detail.passwordRecovery!==true;
   showLogin(response.status===503?'Acesso ainda não configurado no servidor.':'');
  }catch{showLogin('Não foi possível verificar o acesso. Tente novamente.');}
 }
@@ -253,8 +254,22 @@ document.addEventListener('click',e=>{
 });
 window.addEventListener('afterprint',()=>delete document.body.dataset.printMode);
 $('#menuButton').addEventListener('click',()=>{if(matchMedia('(max-width:760px)').matches)toggleMenu(!$('#sidebar').classList.contains('open'));else setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));});$('#navBackdrop').addEventListener('click',()=>toggleMenu(false));document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleMenu(false);});
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const form=e.currentTarget,button=form.querySelector('button');button.disabled=true;$('#loginError').textContent='';try{const response=await fetch('/api/auth.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:form.elements.username.value.trim(),password:form.elements.password.value,...(window.gestorDesktop?{server:form.elements.server.value.trim()}:{})})});if(!response.ok){const data=await response.json().catch(()=>({}));throw new Error(data.error||'Não foi possível entrar.');}form.elements.password.value='';currentUser=await response.json();try{const runtime=await fetch('/api/runtime.js');securityV2=runtime.ok&&(await runtime.json()).securityV2===true;}catch{}authenticated=true;document.body.classList.remove('auth-loading');$('#loginScreen').hidden=true;render();await loadState();}catch(error){$('#loginError').textContent=error.message;}finally{button.disabled=false;}});
-$('#logoutButton').addEventListener('click',async()=>{try{await fetch('/api/auth.js',{method:'DELETE'});}finally{showLogin();}});
+$('#loginForm').addEventListener('submit',async e=>{
+ e.preventDefault();const form=e.currentTarget,button=form.querySelector('[type=submit]');if(form.getAttribute('aria-busy')==='true')return;
+ button.disabled=true;form.setAttribute('aria-busy','true');$('#loginSubmitText').textContent='Verificando acesso…';$('#loginError').textContent='';$('#loginStatus').textContent='';
+ for(const input of [form.elements.username,form.elements.password])input.removeAttribute('aria-invalid');
+ try{
+  const response=await fetch('/api/auth.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:form.elements.username.value.trim(),password:form.elements.password.value,...(window.gestorDesktop?{server:form.elements.server.value.trim()}:{})})});
+  const data=await response.json().catch(()=>({}));if(!response.ok){if(response.status===401)for(const input of [form.elements.username,form.elements.password])input.setAttribute('aria-invalid','true');throw new Error(data.error||'Não foi possível entrar.');}
+  form.elements.password.value='';if(typeof updatePasswordVisibility==='function')updatePasswordVisibility(false);currentUser=data;securityV2=data.securityV2===true;
+  try{const runtime=await fetch('/api/runtime.js');if(runtime.ok)securityV2=(await runtime.json()).securityV2===true;}catch{}
+  $('#loginStatus').textContent='Acesso autorizado. Abrindo o planejamento…';authenticated=true;
+  // Internal route only: never accept a URL supplied by the login query string.
+  location.hash='overview';document.body.classList.remove('auth-loading');$('#loginScreen').hidden=true;render();await loadState();$('#breadcrumb').setAttribute('tabindex','-1');$('#breadcrumb').focus();
+ }catch(error){$('#loginError').textContent=error.message;form.elements.password.value='';form.elements.password.focus();}
+ finally{button.disabled=false;form.setAttribute('aria-busy','false');$('#loginSubmitText').textContent='Entrar no sistema';}
+});
+$('#logoutButton').addEventListener('click',async()=>{try{const response=await fetch('/api/auth.js',{method:'DELETE'});if(!response.ok)throw new Error('Não foi possível encerrar a sessão no servidor. Tente novamente.');showLogin();}catch(error){notify(error.message);}});
 window.addEventListener('hashchange',()=>{viewIndex=0;render();window.scrollTo(0,0);});
 setInterval(()=>{const clock=$('#pilotClock');if(clock){const now=new Date();clock.textContent=`${now.toLocaleDateString('pt-BR')} · ${now.toLocaleTimeString('pt-BR')}`;}},1000);
 window.desktopFlush=()=>authenticated&&storageMode==='sql'?commit():Promise.resolve();

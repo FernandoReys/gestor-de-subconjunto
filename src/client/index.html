@@ -1,12 +1,41 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#004f91"><meta name="robots" content="noindex,nofollow">
-<title>Gestor de Subconjunto · Planejamento de produção</title><link rel="stylesheet" href="/styles.css">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#005A9C"><meta name="robots" content="noindex,nofollow">
+<title>Gerenciador de Escala · Planejamento de produção</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/login.css">
 </head><body data-theme="light" class="auth-loading">
-<section id="loginScreen" class="login-screen" hidden><div class="login-card"><div class="login-mark">g<span>+</span></div><p class="eyebrow">ACESSO PRIVADO</p><h1>Gestor de Subconjunto</h1><p>Entre para organizar a linha de produção.</p><form id="loginForm"><label class="field">Usuário<input name="username" autocomplete="username" required autofocus></label><label class="field">Senha<input name="password" type="password" autocomplete="current-password" required></label><p id="loginError" class="login-error" role="alert" aria-live="polite"></p><button class="button primary" type="submit">Entrar</button></form></div></section>
+<section id="loginScreen" class="login-screen" aria-label="Acesso ao Gerenciador de Escala" hidden>
+ <div class="login-layout">
+  <aside class="login-hero" aria-labelledby="loginBrand">
+   <div class="login-orbit orbit-one" aria-hidden="true"></div><div class="login-orbit orbit-two" aria-hidden="true"></div>
+   <div class="login-brand"><span class="login-brand-symbol"><img src="/icons/panels-top-left.svg" alt="" width="25" height="25"></span><span id="loginBrand">GERENCIADOR<span>DE ESCALA</span></span></div>
+   <div class="login-hero-copy"><p class="login-kicker">CADA PESSOA. CADA POSTO. CADA TURNO.</p><h1>Planejamento inteligente<br>da produção.</h1><p class="login-description">Organize colaboradores, planeje escalas e acompanhe a programação da linha de produção em um ambiente integrado.</p></div>
+   <div class="login-planning" role="img" aria-label="Ilustração de um planejamento semanal organizado por postos de produção">
+    <div class="planning-title"><span class="planning-icon"><img src="/icons/calendar-days.svg" width="19" height="19" alt=""></span><div>Planejamento da produção<small>Organização em cada etapa</small></div><span class="planning-dots">•••</span></div>
+    <div class="planning-days"><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span></div>
+    <div class="planning-grid"><span class="planning-block block-one"></span><span class="planning-block block-two"></span><span class="planning-block block-three"></span><span class="planning-block block-four"></span><span class="planning-block block-five"></span></div>
+    <div class="planning-stations"><span>20</span><i></i><span>30</span><i></i><span>40</span><i></i><span>50</span><i></i><span>60</span><i></i><span>70</span></div>
+   </div>
+   <div class="login-hero-footer"><img src="/icons/workflow.svg" alt="" width="18" height="18"><span>Planejar. Distribuir. Acompanhar.</span></div>
+  </aside>
+  <div class="login-form-panel"><div class="login-card">
+   <div class="login-access-label"><span></span> ACESSO AO SISTEMA</div>
+   <h2>Bem-vindo de volta</h2><p class="login-subtitle">Entre com suas credenciais para acessar o Gerenciador de Escala.</p>
+   <form id="loginForm" aria-busy="false">
+    <label class="field" for="loginUsername">Usuário</label><div class="login-input"><img src="/icons/user-round.svg" width="19" height="19" alt=""><input id="loginUsername" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="60" required autofocus placeholder="Digite seu usuário" aria-describedby="loginError"></div>
+    <label class="field" for="loginPassword">Senha</label><div class="login-input"><img src="/icons/lock-keyhole.svg" width="19" height="19" alt=""><input id="loginPassword" name="password" type="password" autocomplete="current-password" maxlength="256" required placeholder="Digite sua senha" aria-describedby="loginError"><button id="loginPasswordToggle" class="login-password-toggle" type="button" aria-label="Mostrar senha" aria-pressed="false" aria-controls="loginPassword"><img src="/icons/eye.svg" width="19" height="19" alt=""></button></div>
+    <div class="login-recovery"><button id="loginRecovery" type="button" class="login-text-button" hidden>Esqueci minha senha</button></div>
+    <p id="loginError" class="login-error" role="alert" aria-live="polite"></p>
+    <button id="loginSubmit" class="button primary login-submit" type="submit"><span class="login-spinner" aria-hidden="true"></span><span id="loginSubmitText">Entrar no sistema</span><img src="/icons/arrow-right.svg" width="19" height="19" alt=""></button>
+    <p id="loginStatus" class="login-status" role="status" aria-live="polite"></p>
+   </form>
+   <p class="login-access-note"><img src="/icons/shield-check.svg" alt="" width="16" height="16">Acesso restrito a usuários autorizados.</p>
+   <nav class="login-legal" aria-label="Informações do aplicativo"><a href="/privacidade.html" target="_blank" rel="noopener">Privacidade</a><span>·</span><a href="/termos.html" target="_blank" rel="noopener">Termos de uso</a></nav>
+  </div><p class="login-panel-footer">PLANEJAMENTO INDUSTRIAL <span>•</span> VERSÃO PILOTO</p></div>
+ </div>
+</section>
 <aside id="sidebar" class="sidebar">
-<div class="sidebar-head"><a class="brand" href="#overview"><span class="brand-icon">g<span>+</span></span><span>Gestor<small>DE SUBCONJUNTO</small></span></a><button id="sidebarToggle" class="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Recolher menu lateral" title="Recolher menu lateral">←</button></div>
+<div class="sidebar-head"><a class="brand" href="#overview"><span class="brand-icon">g<span>+</span></span><span>Gerenciador<small>DE ESCALA</small></span></a><button id="sidebarToggle" class="sidebar-toggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Recolher menu lateral" title="Recolher menu lateral">←</button></div>
 <div class="workspace-label">ESPAÇO DE PLANEJAMENTO</div><nav aria-label="Menu principal" id="nav"></nav>
 <div class="sidebar-context"><span class="context-dot"></span><div>Linha de subconjunto<small>Planejamento de produção</small></div></div>
 <div class="sidebar-footer"><span class="private-icon">▣</span><div>Acesso privado<small>Versão Piloto</small></div></div>
@@ -17,5 +46,5 @@
 <dialog id="agendaDialog" aria-labelledby="agendaTitle"></dialog><dialog id="employeeDialog" aria-labelledby="employeeTitle"></dialog><dialog id="stationDialog" aria-labelledby="stationTitle"></dialog><dialog id="fpDialog" aria-labelledby="fpDialogTitle"></dialog><dialog id="extraDialog" aria-labelledby="extraDialogTitle"></dialog><dialog id="confirmDialog" aria-labelledby="confirmDialogTitle"></dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div><script src="/scheduler.js"></script><script src="/web-sync.js"></script><script src="/desktop.js"></script><script src="/agenda.js"></script><script src="/dashboard-model.js"></script><script src="/dashboard-ui.js"></script><script src="/app.js"></script><script src="/agenda-ui.js"></script><script src="/support-knowledge.js"></script><script src="/support-context.js"></script><script src="/security-ui.js"></script><script src="/support-actions.js"></script>
 <script src="/support-executor.js"></script>
-<script src="/support.js"></script><script src="/shell.js"></script>
+<script src="/support.js"></script><script src="/shell.js"></script><script src="/login-ui.js"></script>
 </body></html>

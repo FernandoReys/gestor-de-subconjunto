@@ -10,8 +10,13 @@ const publicDir = path.join(root, 'public');
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(path.join(dist, '.openai'), { recursive: true });
 
-['index.html', 'styles.css', 'app.js', 'scheduler.js', 'desktop.js', 'agenda.js', 'agenda-ui.js', 'shell.js', 'web-sync.js', 'support.js', 'support-knowledge.js', 'support-context.js', 'support-actions.js', 'support-executor.js', 'dashboard-ui.js', 'security-ui.js'].forEach((file) => fs.copyFileSync(path.join(client, file), path.join(dist, file)));
+['index.html', 'login.css', 'login-ui.js', 'styles.css', 'app.js', 'scheduler.js', 'desktop.js', 'agenda.js', 'agenda-ui.js', 'shell.js', 'web-sync.js', 'support.js', 'support-knowledge.js', 'support-context.js', 'support-actions.js', 'support-executor.js', 'dashboard-ui.js', 'security-ui.js'].forEach((file) => fs.copyFileSync(path.join(client, file), path.join(dist, file)));
 fs.cpSync(publicDir, dist, { recursive: true });
+fs.mkdirSync(path.join(dist,'fonts'),{recursive:true});fs.mkdirSync(path.join(dist,'icons'),{recursive:true});fs.mkdirSync(path.join(dist,'licenses'),{recursive:true});
+fs.copyFileSync(path.join(root,'node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2'),path.join(dist,'fonts/inter-latin.woff2'));
+for(const name of ['panels-top-left','calendar-days','workflow','user-round','lock-keyhole','eye','eye-off','arrow-right','shield-check'])fs.copyFileSync(path.join(root,'node_modules/lucide-static/icons',name+'.svg'),path.join(dist,'icons',name+'.svg'));
+fs.copyFileSync(path.join(root,'node_modules/lucide-static/LICENSE'),path.join(dist,'licenses/lucide.txt'));
+fs.copyFileSync(path.join(root,'node_modules/@fontsource-variable/inter/LICENSE'),path.join(dist,'licenses/inter.txt'));
 const domainOutput=path.join(dist,'_domain');
 execFileSync(process.execPath,[path.join(root,'node_modules/typescript/bin/tsc'),'--project',path.join(root,'tsconfig.json'),'--noEmit','false','--outDir',domainOutput],{stdio:'inherit'});
 const domainJs=fs.readFileSync(path.join(domainOutput,'dashboard.js'),'utf8');
