@@ -24,11 +24,11 @@ app.whenReady().then(async()=>{try{
  assert.equal((await fetch(origin+'/api/desktop-sync.js')).status,401);
  const mainHeaders=await fetch(origin);assert.match(mainHeaders.headers.get('content-security-policy'),/script-src 'self'/);assert.equal(mainHeaders.headers.get('x-frame-options'),'DENY');
  for(const [width,height,name]of [[1920,1080,'desktop'],[1366,768,'notebook'],[768,1024,'tablet'],[390,844,'mobile'],[320,740,'small']]){
-  win.setContentSize(width,height);await paint();assert.equal(await run('innerWidth'),width,'exact viewport');assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'),true,'no horizontal overflow at '+width);
+  win.setContentSize(width,height);await wait(`innerWidth===${width}&&innerHeight===${height}`);await paint();assert.equal(await run('innerWidth'),width,'exact viewport');assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'),true,'no horizontal overflow at '+width);
   const button=await run("(()=>{const r=document.querySelector('#loginSubmit').getBoundingClientRect();return {left:r.left,right:r.right,bottom:r.bottom}})()");assert.ok(button.left>=0&&button.right<=width);
   fs.mkdirSync(path.join(__dirname,'../verification'),{recursive:true});fs.writeFileSync(path.join(__dirname,'../verification/web-login-'+name+'.png'),(await capture()).toPNG());
  }
- win.setContentSize(1920,1080);await paint();
+ win.setContentSize(1920,1080);await wait("innerWidth===1920&&innerHeight===1080");await paint();
  await run("document.querySelector('#loginPasswordToggle').click()");assert.equal(await run("document.querySelector('#loginPassword').type"),'text');assert.equal(await run("document.querySelector('#loginPasswordToggle').getAttribute('aria-label')"),'Ocultar senha');await run("document.querySelector('#loginPasswordToggle').click()");
  win.webContents.focus();await run("document.querySelector('#loginUsername').focus()");win.webContents.sendInputEvent({type:'keyDown',keyCode:'Tab'});win.webContents.sendInputEvent({type:'keyUp',keyCode:'Tab'});await paint();assert.equal(await run('document.activeElement.id'),'loginPassword');
  await run("document.querySelector('#loginUsername').value='fernando';document.querySelector('#loginPassword').value='invalid-ephemeral-password';document.querySelector('#loginForm').requestSubmit()");await wait("document.querySelector('#loginError').textContent.length>0&&document.querySelector('#loginForm').getAttribute('aria-busy')==='false'");assert.match(await run("document.querySelector('#loginError').textContent"),/Usuário ou senha inválidos/);assert.equal(await run('authenticated'),false);
