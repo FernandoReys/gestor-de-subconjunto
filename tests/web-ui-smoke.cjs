@@ -61,10 +61,10 @@ app.whenReady().then(async()=>{
   assert.equal(await run(`document.querySelector('#sidebar').classList.contains('open')`),true);
   await capture('web-mobile-menu.png');
   win.setSize(1440,1000);await paint();
-  await run(`toggleMenu(false);toggleSupport(true);await sendSupportQuestion('limpar sistema')`);
+  await run(`(async()=>{toggleMenu(false);toggleSupport(true);await sendSupportQuestion('limpar sistema')})()`);
   assert.match(await run(`supportConversation.at(-1).content`),/Nada foi apagado/);
   assert.equal(await run(`!!supportConversation.at(-1).action`),false);
-  await run(`await sendSupportQuestion('limpar funcionários');executeSupportAction(supportConversation.at(-1))`);
+  await run(`(async()=>{await sendSupportQuestion('limpar funcionários');executeSupportAction(supportConversation.at(-1))})()`);
   assert.equal(await run(`employees.length`),10,'Cleanup must wait for typed confirmation');
   assert.equal(await run(`document.querySelector('#confirmDialog').open`),true);
   await run(`document.querySelector('#confirmDialog').close()`);
