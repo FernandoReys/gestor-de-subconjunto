@@ -62,6 +62,7 @@ async function loadState(){
  render();
 }
 function showLogin(message=''){
+ if(typeof resetSupportSession==='function')resetSupportSession();
  authenticated=false;clearTimeout(saveTimer);storageMode='loading';config=S.defaults();employees=[];result=null;lastSaved='';
  document.body.classList.add('auth-loading');$('#loginScreen').hidden=false;$('#loginError').textContent=message;
  $('#loginForm').elements.username.focus();

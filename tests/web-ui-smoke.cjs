@@ -60,6 +60,25 @@ app.whenReady().then(async()=>{
   await run(`document.querySelector('#menuButton').click()`);await paint();
   assert.equal(await run(`document.querySelector('#sidebar').classList.contains('open')`),true);
   await capture('web-mobile-menu.png');
+  win.setSize(1440,1000);await paint();
+  await run(`toggleMenu(false);toggleSupport(true);await sendSupportQuestion('limpar sistema')`);
+  assert.match(await run(`supportConversation.at(-1).content`),/Nada foi apagado/);
+  assert.equal(await run(`!!supportConversation.at(-1).action`),false);
+  await run(`await sendSupportQuestion('limpar funcionários');executeSupportAction(supportConversation.at(-1))`);
+  assert.equal(await run(`employees.length`),10,'Cleanup must wait for typed confirmation');
+  assert.equal(await run(`document.querySelector('#confirmDialog').open`),true);
+  await run(`document.querySelector('#confirmDialog').close()`);
+  await run(`supportMessage('Proposta de cadastro','ai',{action:{name:'edit_employee',input:{name:'Teste do assistente',role:'Assistente',present:true}},fingerprint:supportFingerprint()});executeSupportAction(supportConversation.at(-1))`);
+  assert.equal(await run(`employees.length`),10,'Proposal must not write data before review');
+  assert.equal(await run(`document.querySelector('#employeeForm').elements.name.value`),'Teste do assistente');
+  await capture('web-chat-action-review.png');
+  await run(`document.querySelector('#employeeForm').requestSubmit()`);await paint();
+  assert.equal(await run(`employees.length`),11,'Reviewed form must use existing save handler');
+  assert.equal(await run(`employees.at(-1).role`),'Assistente');
+  await run(`supportMessage('Alterar disponibilidade','ai',{action:{name:'edit_employee',input:{existingName:'Teste do assistente',present:false}},fingerprint:supportFingerprint()});executeSupportAction(supportConversation.at(-1));config.end='22:00';document.querySelector('#employeeForm').requestSubmit()`);
+  assert.equal(await run(`employees.at(-1).present`),true,'Stale form submission must not overwrite changed state');
+  await run(`document.querySelector('#employeeDialog').close();showLogin()`);
+  assert.equal(await run(`supportConversation.length`),0,'Logout must discard chat and proposed actions');
   console.log('WEB UI: authenticated bootstrap, weekly agenda, collapse/expand, dark theme, support fallback, floating chat, confirmed draft, stale draft rejection, mobile menu and no horizontal page overflow: OK');
   clearTimeout(timer);server.close();app.exit(0);
  }catch(error){console.error(error);clearTimeout(timer);server.close();app.exit(1);}

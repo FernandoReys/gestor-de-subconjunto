@@ -1,5 +1,6 @@
 'use strict';
 const supportConversation=[];
+let supportService='unknown',supportSession=0;
 let supportBusy=false,supportOpen=false,supportDraft=null,supportSummary=null;
 function supportPage(){
  $('#app').innerHTML=heading('AJUDA NO DIA A DIA','Assistente do Gestor','O assistente acompanha você pelo botão no canto direito.',`<button class="button primary" data-open-support>Abrir mini chat ${icon('spark')}</button>`)+`<section class="card support-intro"><h2>Ajuda para organizar a linha</h2><p>Prepare uma prévia da escala, confira pendências e tire dúvidas sem sair da página em que está trabalhando.</p><div class="actions"><button class="button" data-support-action="schedule">Preparar escala</button><button class="button" data-support-action="diagnose">Diagnosticar sistema</button></div><p class="helper">A prévia usa as regras do Gestor e só é aplicada quando você confirma. O chat não altera o código nem aprova uma escala com pendências.</p></section><div class="support-help-grid">${window.GestorHelp.articles.map(x=>`<details class="card support-article"><summary>${esc(x.title)}</summary><p>${esc(x.text)}</p><a class="button small" href="#${x.route}">Abrir no sistema →</a></details>`).join('')}</div>`;
@@ -18,6 +19,10 @@ function renderSupportMessages(){
   const text=document.createElement('p');text.textContent=item.content;bubble.append(label,text);
   for(const source of item.sources||[]){const link=document.createElement('a');link.href='#'+source.route;link.textContent=source.title+' →';bubble.append(link);}
   if(item.draft&&supportDraft?.id===item.draft){const button=document.createElement('button');button.className='button small';button.textContent='Conferir e aplicar prévia';button.onclick=reviewSupportDraft;bubble.append(button);}
+  if(item.action){
+   const details=document.createElement('pre');details.className='support-action-details';details.textContent=supportActionDetails(item.action);bubble.append(details);
+   const button=document.createElement('button');button.className='button small';button.type='button';button.textContent=item.used?'Revisão já aberta':supportActionLabel(item.action);button.disabled=!!item.used||supportBusy;button.onclick=()=>executeSupportAction(item);bubble.append(button);
+  }
   messages.append(bubble);
  }
  if(supportBusy){const note=document.createElement('p');note.className='helper';note.textContent='Consultando o assistente…';messages.append(note);}
@@ -27,13 +32,18 @@ function renderSupportMessages(){
 function supportMessage(content,mode='diagnostic',extra={}){supportConversation.push({role:'assistant',content,mode,...extra});renderSupportMessages();if(!supportOpen)$('#supportLauncher')?.classList.add('has-reply');}
 async function sendSupportQuestion(question,context){
  if(supportBusy||!question.trim())return;
+ const session=supportSession,fingerprint=supportFingerprint();
  supportConversation.push({role:'user',content:question.trim()});supportBusy=true;renderSupportMessages();
  try{
   const messages=[];let budget=0;for(const item of supportConversation.filter(x=>x.role==='user'||x.mode==='ai'||x.mode==='guide').slice(-9).reverse()){const content=item.content.slice(0,2000);if(budget+content.length>12000)break;messages.unshift({role:item.role,content});budget+=content.length;}
   const response=await fetch('/api/support.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages,...(context?{context}:{})})});
   const data=await response.json();if(!response.ok)throw new Error(data.error||'Não foi possível enviar.');
-  supportMessage(data.answer,data.mode,data.sources?{sources:data.sources}:{});
- }catch(error){supportMessage(error.message,'guide');}finally{supportBusy=false;renderSupportMessages();}
+  if(session!==supportSession||!authenticated)return;
+  supportService=data.mode==='ai'?'online':data.service||'unavailable';
+  const status=$('#supportService');if(status)status.textContent=data.mode==='ai'?'IA conectada · ações com revisão':({not_configured:'IA sem configuração',authentication:'IA: autenticação indisponível',credits:'IA: créditos indisponíveis',rate_limit:'IA: limite temporário'})[supportService]||'IA indisponível · comandos locais';
+  const action=data.action?window.GestorSupportActions.validate(data.action):null;
+  supportMessage(data.answer,data.mode,{...(data.sources?{sources:data.sources}:{}),...(action?{action,fingerprint}:{})});
+ }catch(error){if(session===supportSession)supportMessage(error.message,'guide');}finally{if(session===supportSession){supportBusy=false;renderSupportMessages();}}
 }
 function prepareSupportSchedule(){
  toggleSupport(true);
@@ -61,7 +71,7 @@ function diagnoseSupportSystem(){
 function initSupportWidget(){
  const launcher=document.createElement('button');launcher.id='supportLauncher';launcher.className='support-launcher';launcher.type='button';launcher.setAttribute('aria-label','Abrir assistente do Gestor');launcher.setAttribute('aria-controls','supportWidget');launcher.setAttribute('aria-expanded','false');launcher.innerHTML=`${icon('spark')}<span class="support-dot" aria-hidden="true"></span><span class="sr-only">Assistente do Gestor</span>`;
  const panel=document.createElement('section');panel.id='supportWidget';panel.className='support-widget';panel.hidden=true;panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Mini chat do Assistente do Gestor');
- panel.innerHTML=`<div class="support-widget-head"><span class="support-symbol">${icon('spark')}</span><div><h2>Assistente do Gestor</h2><p>Escalas e suporte do sistema</p></div><button class="icon-button" id="supportClose" aria-label="Fechar mini chat">×</button></div><div class="support-quick-actions"><button type="button" data-support-action="schedule">Preparar escala</button><button type="button" data-support-action="diagnose">Verificar sistema</button><button type="button" id="supportExplain">Explicar pendências</button></div><div class="support-messages" id="supportMessages" role="log" aria-live="polite" aria-relevant="additions text"></div><form id="supportForm"><label class="sr-only" for="supportQuestion">Sua dúvida</label><textarea id="supportQuestion" maxlength="2000" rows="2" required placeholder="Como posso ajudar?"></textarea><div class="support-widget-send"><button class="button small" id="supportClear" type="button">Limpar</button><button class="button primary small" type="submit">Enviar ${icon('arrow')}</button></div><p class="support-privacy">Mensagens vão para a IA. Não envie senhas ou dados pessoais. Diagnósticos da escala ficam neste navegador, salvo quando você pede uma explicação com resumo numérico.</p></form>`;
+ panel.innerHTML=`<div class="support-widget-head"><span class="support-symbol">${icon('spark')}</span><div><h2>Assistente do Gestor</h2><p id="supportService">IA: aguardando primeira consulta</p></div><button class="icon-button" id="supportClose" aria-label="Fechar mini chat">×</button></div><div class="support-quick-actions"><button type="button" data-support-action="schedule">Preparar escala</button><button type="button" data-support-action="diagnose">Verificar sistema</button><button type="button" id="supportExplain">Explicar pendências</button></div><div class="support-messages" id="supportMessages" role="log" aria-live="polite" aria-relevant="additions text"></div><form id="supportForm"><label class="sr-only" for="supportQuestion">Sua dúvida</label><textarea id="supportQuestion" maxlength="2000" rows="2" required placeholder="Como posso ajudar?"></textarea><div class="support-widget-send"><button class="button small" id="supportClear" type="button">Limpar conversa</button><button class="button primary small" type="submit">Enviar ${icon('arrow')}</button></div><p class="support-privacy">Mensagens vão para a IA. Envie somente os dados necessários ao pedido, sem senhas ou informações de saúde. Cadastros completos não são enviados. Ações passam por revisão antes de salvar ou excluir.</p></form>`;
  document.body.append(panel,launcher);launcher.onclick=()=>toggleSupport(!supportOpen);$('#supportClose').onclick=()=>toggleSupport(false);
  $('#supportClear').onclick=()=>{if(supportBusy)return;supportConversation.length=0;supportDraft=null;supportSummary=null;renderSupportMessages();};
  $('#supportForm').onsubmit=event=>{event.preventDefault();const field=$('#supportQuestion'),question=field.value;field.value='';void sendSupportQuestion(question);};
@@ -70,3 +80,5 @@ function initSupportWidget(){
  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&supportOpen&&!document.querySelector('dialog[open]'))toggleSupport(false);});
 }
 window.addEventListener('DOMContentLoaded',initSupportWidget);
+
+function resetSupportSession(){supportSession++;supportBusy=false;supportConversation.length=0;supportDraft=null;supportSummary=null;const field=$('#supportQuestion');if(field)field.value='';renderSupportMessages();}

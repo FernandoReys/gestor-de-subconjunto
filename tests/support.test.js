@@ -28,3 +28,15 @@ test('schedule context contains counts and times only, stripping names and unrel
 test('support endpoint rejects an invalid schedule context before contacting AI',async()=>{
  const response=await request({messages:[{role:'user',content:'Analise'}],context:{names:['Teste']}});assert.equal(response.statusCode,400);
 });
+test('assistant actions reject arbitrary commands, unknown fields, invalid dates and scopes',()=>{
+ const A=require('../src/client/support-actions');
+ for(const action of [{name:'sql',input:{query:'delete'}},{name:'maintenance',input:{scope:'all'}},{name:'edit_employee',input:{name:'Teste',allowed:['40']}},{name:'schedule_production',input:{date:'2026-02-30'}},{name:'configure_schedule',input:{start:'24:00'}}])assert.throws(()=>A.validate(action));
+ assert.deepEqual(A.validate({name:'edit_employee',input:{existingName:'Teste',name:null,present:false}}),{name:'edit_employee',input:{existingName:'Teste',present:false}});
+});
+test('ambiguous cleanup asks scope and negated commands never create an action',async()=>{
+ const A=require('../src/client/support-actions');
+ assert.equal(A.fallback('limpar sistema').action,undefined);
+ assert.equal(A.fallback('não limpar escalas'),null);
+ const response=await request({messages:[{role:'user',content:'limpar sistema'}]});assert.match(response.data.answer,/Nada foi apagado/);assert.equal(response.data.action,undefined);
+ const exact=await request({messages:[{role:'user',content:'limpar escalas'}]});assert.equal(exact.data.action.name,'maintenance');assert.equal(exact.data.action.input.scope,'schedules');
+});

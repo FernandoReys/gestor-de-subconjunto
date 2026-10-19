@@ -9,7 +9,7 @@ const publicDir = path.join(root, 'public');
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(path.join(dist, '.openai'), { recursive: true });
 
-['index.html', 'styles.css', 'app.js', 'scheduler.js', 'desktop.js', 'agenda.js', 'agenda-ui.js', 'shell.js', 'web-sync.js', 'support.js', 'support-knowledge.js', 'support-context.js'].forEach((file) => fs.copyFileSync(path.join(client, file), path.join(dist, file)));
+['index.html', 'styles.css', 'app.js', 'scheduler.js', 'desktop.js', 'agenda.js', 'agenda-ui.js', 'shell.js', 'web-sync.js', 'support.js', 'support-knowledge.js', 'support-context.js', 'support-actions.js', 'support-executor.js'].forEach((file) => fs.copyFileSync(path.join(client, file), path.join(dist, file)));
 fs.cpSync(publicDir, dist, { recursive: true });
 const version = require('../package.json').version;
 const indexFile = path.join(dist, 'index.html');

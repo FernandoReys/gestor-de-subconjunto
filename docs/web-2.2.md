@@ -53,3 +53,13 @@ Ainda exige validação no ambiente publicado: login/salvamento real, acesso AI 
 - O painel Connect da Vercel informa que não há conector vinculado. Google OAuth não foi ativado.
 - A tentativa de autenticação pelo formulário seguro do site retornou “Usuário ou senha inválidos”. Não houve redefinição de senha. O teste autenticado do banco publicado e da IA real continua pendente; não confundir o guia local aprovado em CI com uma resposta real do modelo.
 - Nenhum instalador novo foi gerado nesta etapa.
+
+## Web 2.3.0 — ações revisadas pelo chat
+
+O endpoint usa tool calling do AI SDK instalado para propor uma única ação por resposta. As ferramentas podem abrir páginas, calcular prévia, diagnosticar, preencher formulários de funcionário/FP/programação, alterar os parâmetros da montagem e abrir as confirmações existentes de limpeza. Os formulários continuam sendo responsáveis por validar e salvar. Não há SQL, JavaScript gerado ou acesso à infraestrutura pelo modelo.
+
+Servidor e navegador aplicam a mesma lista de ações e campos. A proposta é bloqueada quando os dados mudam, a sessão termina ou há conflito. O envio de formulário também verifica a versão. A conversa e propostas são descartadas ao sair. O modelo recebe a conversa e, somente quando solicitado, o resumo numérico da escala; não recebe o cadastro completo nem restrições pessoais.
+
+Quando o serviço de IA falha, o cabeçalho informa a indisponibilidade. Há comandos locais exatos, identificados como guia local; “limpar sistema” pede escopo e não apaga nada. Limpezas exigem a confirmação digitada já existente. Ação proposta ou formulário aberto não é anunciado como dado salvo.
+
+Validação local: 45 testes passaram, incluindo rejeição de comandos/campos não permitidos, datas inválidas, limpeza ambígua e negação. O workflow web também verifica preenchimento, salvamento confirmado de cadastro, rejeição de formulário desatualizado e descarte do chat no logout. Validação real do provedor de IA continua pendente: o login do site de teste foi recusado em 19/10/2026; isso não é evidência de funcionamento do modelo.
