@@ -112,7 +112,9 @@ function notify(message){$('#toast').textContent=message;$('#toast').classList.a
 function heading(kicker,title,subtitle,action=''){return `<div class="page-heading"><div><p class="eyebrow">${esc(kicker)}</p><h1>${esc(title)}</h1><p class="subtitle">${esc(subtitle)}</p></div>${action}</div>`;}
 function alertBox(text,tone=''){return `<div class="alert ${tone}">${icon(tone==='success'?'check':tone==='info'?'file':'alert')}<div>${text}</div></div>`;}
 function metric(label,value,unit,foot,ico){return `<article class="metric"><span class="metric-icon">${icon(ico)}</span><div><span class="metric-label">${label}</span><strong>${value}<small>${unit}</small></strong><span class="metric-foot">${foot}</span></div></article>`;}
-function statusText(){return !result?'Pendente':result.errors.length?'Em montagem':result.complete?(config.confirmedId?'Pronta':'Em montagem'):'Incompleta';}
+function stableJson(value){return JSON.stringify(value,(_key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);}
+function statusText(){if(!result)return 'Pendente';if(result.errors.length)return 'Em montagem';if(!result.complete)return 'Incompleta';const entry=(config.history||[]).find(x=>x.id===config.confirmedId);if(entry&&(!securityV2||entry.date===result.config.date&&entry.fpId===result.config.product&&stableJson(entry.snapshot.rows)===stableJson(result.rows)))return entry.status;return 'Em montagem';}
+
 function displayRow(){if(result?.rows.length)return result.rows[Math.min(viewIndex,result.rows.length-1)];return null;}
 function overview(){renderDashboard();}
 function dateLabel(value){const d=new Date(value+'T12:00:00');return Number.isNaN(d.getTime())?'Data não definida':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});}

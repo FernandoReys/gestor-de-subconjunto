@@ -1,5 +1,5 @@
 'use strict';
-const crypto=require('node:crypto'),identity=require('./identity'),{authorize}=require('./auth-core'),S=require('../src/client/scheduler');
+const {isDeepStrictEqual}=require('node:util'),identity=require('./identity'),{authorize}=require('./auth-core'),S=require('../src/client/scheduler');
 module.exports=async(req,res)=>{
  res.setHeader('Cache-Control','no-store');if(req.method!=='POST')return res.status(405).json({error:'Método inválido.'});const user=await authorize(req,res);if(!user)return;
  if(!identity.enabled()||!['Administrador','Líder'].includes(user.role))return res.status(403).json({error:'Aprovação ou cancelamento exige Administrador ou Líder.'});
@@ -11,7 +11,7 @@ module.exports=async(req,res)=>{
   const fp=state.config.fps?.find(x=>x.id===entry.fpId&&x.status!=='Arquivada');if(!fp||entry.status!=='Aguardando aprovação')return res.status(409).json({error:'Revise a FP e a situação da escala.'});
   const plan=S.generate({...entry.snapshot.config,fpStations:fp.stations},state.employees);
   const organizers=(entry.snapshot.organizers||[]).filter(x=>state.employees.some(p=>p.id===x.id&&p.role==='Assistente'&&p.active&&p.present));
-  if(!plan.complete||!organizers.length||JSON.stringify(plan.rows)!==JSON.stringify(entry.snapshot.rows)||JSON.stringify(plan.positions)!==JSON.stringify(entry.snapshot.positions))return res.status(409).json({error:'Equipe, FP ou distribuição mudou. Monte e envie uma nova proposta antes de aprovar.'});
+  if(!plan.complete||!organizers.length|| !isDeepStrictEqual(JSON.parse(JSON.stringify(plan.rows)),entry.snapshot.rows)||!isDeepStrictEqual(JSON.parse(JSON.stringify(plan.positions)),entry.snapshot.positions))return res.status(409).json({error:'Equipe, FP ou distribuição mudou. Monte e envie uma nova proposta antes de aprovar.'});
  }
  entry.status=body.action==='approve'?'Aprovada':'Cancelada';
  const result=(await sql`SELECT gestor_push(${body.operationId}::uuid,${body.revision},${JSON.stringify(state)}::jsonb,${user.id}::uuid,${user.version},${body.deviceId}::uuid,now(),'web',${body.action},${body.id}::uuid) AS result`)[0].result;

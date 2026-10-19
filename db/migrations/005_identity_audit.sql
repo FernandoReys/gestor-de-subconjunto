@@ -70,6 +70,8 @@ BEGIN
    IF person.role='Assistente' AND previous IS NOT NULL AND previous->>'createdBy' IS DISTINCT FROM actor::text THEN denied=true; END IF;
    IF (entry ? 'approvedBy') OR (entry ? 'approvedAt') THEN denied=true; END IF;
    IF previous IS NULL THEN entry=entry||jsonb_build_object('createdBy',actor); ELSIF entry->>'createdBy' IS DISTINCT FROM previous->>'createdBy' THEN denied=true; END IF;
+   entry=entry-ARRAY['submittedBy','submittedAt'];
+   IF previous ? 'submittedBy' THEN entry=entry||jsonb_build_object('submittedBy',previous->'submittedBy','submittedAt',previous->'submittedAt'); END IF;
    IF entry->>'status'='Aguardando aprovação' THEN entry=entry||jsonb_build_object('submittedBy',actor,'submittedAt',now()); END IF;
   END IF;
   next_history=next_history||jsonb_build_array(entry);

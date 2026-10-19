@@ -15,7 +15,7 @@ app.whenReady().then(async()=>{try{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin='http://127.0.0.1:'+server.address().port;
  const login=async user=>{const parts=auth.cookieOptions({headers:{}},false,user).split(';')[0].split('=');await session.defaultSession.cookies.set({url:origin,name:parts[0],value:parts[1],httpOnly:true,path:'/'});};await login(admin);
  const win=new BrowserWindow({width:1440,height:1000,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.on('console-message',(_event,...args)=>console.log('RENDERER',...args));
- const run=code=>win.webContents.executeJavaScript(code),wait=predicate=>run(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const tick=()=>{if(${predicate})resolve();else if(Date.now()>end)reject(new Error('Wait failed: '+${JSON.stringify(predicate)}));else setTimeout(tick,30);};tick();})`);
+ const run=code=>win.webContents.executeJavaScript(code),wait=predicate=>run(`new Promise((resolve,reject)=>{const end=Date.now()+10000;const tick=()=>{if(${predicate})resolve();else if(Date.now()>end)reject(new Error('Wait failed: '+${JSON.stringify(predicate)}+'; '+(document.querySelector('#toast')?.textContent||'')));else setTimeout(tick,30);};tick();})`);
  await win.loadURL(origin);await wait("storageMode==='sql'&&securityV2");
  assert.equal(await run(`currentUser.role`),'Administrador');assert.equal(await run(`document.querySelectorAll('.dash-chart').length`),2);assert.equal(await run(`document.documentElement.scrollWidth<=innerWidth`),true);
  fs.mkdirSync(path.join(__dirname,'../verification'),{recursive:true});fs.writeFileSync(path.join(__dirname,'../verification/web-industrial-dashboard.png'),(await win.webContents.capturePage()).toPNG());
