@@ -48,10 +48,36 @@ Electron/SQLite/outbox/conflitos existentes preservados. IA e Google só usam ba
 
 ## Validação
 
-- Lint, typecheck do domínio tipado, build e 56 testes locais aprovados na implementação inicial.
+- Lint, typecheck do domínio tipado, build e 57 testes locais aprovados na implementação inicial.
 - Novos testes: contrato Responses, contexto, leitura por ferramenta e proposta sem gravação; erros e allowlist; OAuth/PKCE/state/cookie, replay, criptografia/AAD, renovação, desconexão/reconexão, limite persistente e auditoria imutável em PostgreSQL PGlite.
 - Testes existentes: IDs determinísticos/ETag/criação/atualização/cancelamento Google com transporte simulado; regressões de regras de escala, permissões, SQL, offline e conflitos.
 - Login público real aprovado antes da publicação.
 - **Os testes simulados não comprovam chamada real OpenAI nem consentimento/eventos reais Google.** Resultados públicos após deploy serão registrados ao final da validação.
 
 Rollback: voltar o código à versão anterior na mesma branch/projeto; manter tabelas da migração 006 e registros de auditoria. Não apagar ou voltar banco de produção.
+
+## Resultado público em 19/10/2026
+
+- Implementação: commit 61f0529d714952f829c519e28b05bdb239f8a279.
+- Correção de lockfile e transporte SSE: dd4bf1a1375bf7e62b4ba7bb60fb24bd6c923e1a.
+- Primeira publicação falhou porque a atualização de versão alterou indevidamente duas referências transitivas no lockfile. Referências e hashes originais restaurados; instalação limpa aprovada.
+- Vercel – gestor-desktop-test: status success (Deployment has completed) no commit dd4bf1a. URL pública respondeu HTTP 200 e exibiu WEB 2.5.0.
+- CI 39265695795 concluído com success: npm ci, lint, typecheck, 57 testes, build, UI web e UI de segurança (Electron, dados sintéticos isolados). Nenhum instalador gerado.
+- /api/support.js sem sessão respondeu HTTP 401, conforme esperado.
+- /api/google-callback.js respondeu HTTP 503 com OAuth ainda não configurado. O painel mostrava somente OPENAI_API_KEY e as variáveis existentes de sessão/banco; credenciais Google ainda ausentes na verificação.
+- Login real aprovado e SQL carregado. Após o login, o navegador de teste restringiu a observação protegida; a recuperação explícita permitiu verificar o site, mas o bloqueio voltou ao abrir os detalhes do deploy e persistiu após a navegação permitida. É necessário concluir a etapa interativa pelo handoff suportado. Não se extraíram cookies/chaves nem se usou outro cliente para contornar essa proteção.
+- **OpenAI real pendente**: não houve comprovação de resposta do modelo nem de leitura/ação real pelo chat nesta sessão. Ter OPENAI_API_KEY configurada e testes de transporte simulados aprovados não equivale a esse teste.
+- **Google real pendente**: credenciais do cliente, consentimento do titular, evento de teste, atualização, cancelamento e reconexão ainda não homologados contra a API real.
+- Migração aplicada no banco de teste: revisão 34 e contagens 11 funcionários, 2 FPs, 0 escalas e 0 agenda antes/depois. Main e banco de produção não receberam alteração manual nem migração.
+
+## Arquivos alterados
+
+- Backend: api/support.js, api/support-openai.js, api/integration-store.js, api/calendar-export.js, api/google-oauth-core.js, api/google-callback.js, api/runtime.js, api/desktop-sync.js.
+- Interface: src/client/support.js, src/client/agenda-ui.js, src/client/index.html.
+- Desktop: desktop/main.cjs (prazo da IA e autorização Google em navegador externo, sem empacotamento).
+- SQL: db/migrations/006_integrations.sql.
+- Dependências/rotas: package.json, package-lock.json, server.js, vercel.json.
+- Testes: tests/openai.test.js, tests/google-oauth.test.js.
+- Este relatório: docs/openai-google-validacao.md.
+
+A migração não configura OAuth nem ativa papéis automaticamente. AUTH_USERS_ENABLED=1 continua pendente no projeto de teste para habilitar identidades individuais; saia e entre novamente após ativar. Não há dados de produção adicionados nesta etapa.
