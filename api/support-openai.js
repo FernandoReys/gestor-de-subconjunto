@@ -10,7 +10,7 @@ async function respond({messages,instructions,consult,emit,client}){
  client=client||new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0,timeout:25000});
  const input=messages.map(x=>({...x})),deadline=AbortSignal.timeout(28000);
  for(let round=0;round<3;round++){
-  const options={model:process.env.OPENAI_MODEL||'gpt-6-luna',input,instructions,tools:tools(),parallel_tool_calls:false,store:false,max_output_tokens:1500,reasoning:{effort:'low'}};
+  const options={model:process.env.OPENAI_MODEL||'gpt-6-luna',input,instructions,tools:tools(),parallel_tool_calls:false,store:false,include:['reasoning.encrypted_content'],max_output_tokens:1500,reasoning:{effort:'low'}};
   let result;
   if(emit){const stream=client.responses.stream(options,{signal:deadline});stream.on('response.output_text.delta',event=>emit({type:'delta',text:event.delta}));result=await stream.finalResponse();}
   else result=await client.responses.create(options,{signal:deadline});

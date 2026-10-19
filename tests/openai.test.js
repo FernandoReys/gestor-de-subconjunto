@@ -10,3 +10,12 @@ test('invalid or arbitrary tool calls and incomplete responses fail closed',asyn
  for(const output of [[{type:'function_call',name:'shell',arguments:'{}'}],[{type:'function_call',name:'maintenance',arguments:'{"scope":"everything"}'}]])await assert.rejects(respond({client:{responses:{create:async()=>({status:'completed',output})}},messages:[],instructions:'',consult:()=>assert.fail()}));
  assert.equal(failure({status:401}),'authentication');assert.equal(failure({status:429,code:'insufficient_quota'}),'credits');assert.equal(failure({status:429}),'rate_limit');assert.equal(failure({name:'APIConnectionTimeoutError'}),'timeout');assert.equal(failure({status:503}),'unavailable');assert.ok(tools().every(x=>x.strict));
 });
+test('official SDK sends Responses HTTPS request and parses genuine SSE wire format',async()=>{
+ const OpenAI=require('openai');let called=false;
+ const response={id:'resp_test',object:'response',created_at:1,status:'completed',model:'gpt-6-luna',output:[{id:'msg_test',type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text:'Bom dia, em que posso ajudar?',annotations:[]}]}]};
+ const client=new OpenAI({apiKey:'test-only-not-real',maxRetries:0,fetch:async(url,options)=>{
+  called=true;assert.equal(String(url),'https://api.openai.com/v1/responses');const body=JSON.parse(options.body);assert.equal(body.stream,true);assert.equal(body.store,false);
+  const events=[{type:'response.created',response:{...response,status:'in_progress',output:[]},sequence_number:0},{type:'response.output_item.added',output_index:0,item:{...response.output[0],status:'in_progress',content:[]},sequence_number:1},{type:'response.content_part.added',output_index:0,content_index:0,item_id:'msg_test',part:{type:'output_text',text:'',annotations:[]},sequence_number:2},{type:'response.output_text.delta',output_index:0,content_index:0,item_id:'msg_test',delta:'Bom dia, em que posso ajudar?',sequence_number:3},{type:'response.completed',response,sequence_number:4}];
+  return new Response(events.map(e=>'event: '+e.type+'\ndata: '+JSON.stringify(e)+'\n\n').join(''),{headers:{'Content-Type':'text/event-stream'}});
+ }});const chunks=[];const result=await respond({client,messages:[{role:'user',content:'Oi, bom dia'}],instructions:'rules',consult:()=>assert.fail(),emit:e=>chunks.push(e)});assert.ok(called);assert.equal(result.answer,'Bom dia, em que posso ajudar?');assert.equal(chunks[0].text,result.answer);
+});

@@ -46,7 +46,7 @@ async function sendSupportQuestion(question,context){
   }else data=await response.json();if(!response.ok)throw new Error(data.error||'Não foi possível enviar.');
   if(session!==supportSession||!authenticated)return;
   supportService=data.mode==='ai'?'online':data.service||'unavailable';
-  const status=$('#supportService');if(status)status.textContent=data.mode==='ai'?'IA conectada · ações com revisão':({not_configured:'IA sem configuração',authentication:'IA: autenticação indisponível',credits:'IA: créditos indisponíveis',rate_limit:'IA: limite temporário',daily_limit:'IA: limite diário atingido',timeout:'IA: tempo de resposta esgotado'})[supportService]||'IA indisponível · comandos locais';
+  const status=$('#supportService');if(status)status.textContent=data.mode==='ai'?'IA conectada · ações com revisão':({not_configured:'IA sem configuração',authentication:'IA: autenticação indisponível',credits:'IA: créditos indisponíveis',rate_limit:'IA: limite temporário',daily_limit:'IA: limite de uso atingido',timeout:'IA: tempo de resposta esgotado'})[supportService]||'IA indisponível · comandos locais';
   const action=data.action?window.GestorSupportActions.validate(data.action):null;
   supportMessage(data.answer,data.mode,{...(data.sources?{sources:data.sources}:{}),...(action?{action,fingerprint}:{})});
  }catch(error){if(session===supportSession)supportMessage(error.message,'guide');}finally{if(session===supportSession){supportBusy=false;renderSupportMessages();}}
