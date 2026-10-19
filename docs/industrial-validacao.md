@@ -45,3 +45,18 @@ TypeScript foi introduzido no modelo do dashboard. A interface DOM e as APIs exi
 Pendente de validação externa: login e ações de cada titular na Vercel/Neon, resposta real da IA, consentimento/publicação Google, instalação/desinstalação/atualização em Windows 10 e 11 reais, recuperação por backup no perfil Windows, e avaliação das regras com os responsáveis pela linha. Não há registro de execução industrial, SLA, aprovação regulatória ou evidência de produção realizada.
 
 O workflow Windows também executa instalação silenciosa, abre a aplicação instalada e executa o desinstalador em uma máquina descartável do GitHub Actions. Isso verifica empacotamento/instalação nesse runner, sem substituir os testes manuais em Windows 10/11. Além do disparo manual, um commit explicitamente marcado [windows-build] na feature branch solicita o build somente após todos os testes web passarem; commits normais não geram instalador.
+
+## Resultado da entrega em 19/10/2026
+
+Código verificado: 6d254c7b15bb11b05aabe59f82e7a52251cbe307, versão 2.4.0. Run: https://github.com/FernandoReys/gestor-de-subconjunto/actions/runs/39253023481.
+
+- 52 testes unitários/integração, lint, tipos e build aprovados no Windows.
+- Fluxo web anterior preservado; teste novo percorreu dashboard SQL, submissão de escala, aprovação recalculada no servidor, auditoria e restrições de Assistente; ambos passaram.
+- NSIS x64 gerado; Electron isolado/SQLite, aplicativo empacotado, instalação silenciosa, abertura da aplicação instalada e execução do desinstalador passaram no runner Windows.
+- Artefato Gestor-Windows-x64-6d254c7b15bb11b05aabe59f82e7a52251cbe307, ID 12186224117: instalador e SHA256SUMS.txt, retido no GitHub até 18/11/2026. Sem assinatura digital configurada.
+- Prévia https://project-fj4by.vercel.app respondeu HTTP 200 com WEB 2.4.0 e os módulos novos.
+- Migração 005 aplicada somente em windows-desktop-test. Consulta após migração preservou revisão 31, 11 funcionários e 2 FPs. Não foram criadas contas fictícias no banco conectado; dados dos testes ficaram em bancos descartáveis.
+
+**Ativação pendente:** adicionar AUTH_USERS_ENABLED=1 ao ambiente Production do projeto isolado gestor-desktop-test (não aos projetos de produção) e refazer o deployment. O conector Vercel retornou projeto não encontrado; a proteção de credenciais do navegador impediu editar a variável mesmo após recuperação da navegação. Portanto Usuários/Auditoria/aprovações individuais não devem ser anunciados como ativos na prévia até esse ajuste. As telas e regras foram validadas com a configuração habilitada apenas nos testes.
+
+Validações externas ainda pendentes: contas reais na prévia após ativação, IA real, OAuth Google e ciclo offline/instalação/atualização em Windows 10 e 11 dos usuários. O instalador entregue é candidato a piloto, não uma homologação de ambiente industrial.
