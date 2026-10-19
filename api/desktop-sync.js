@@ -32,6 +32,7 @@ module.exports = async function handler(req, res) {
     const rows = require('./identity').enabled()?await sql`SELECT gestor_push(${body.id}::uuid,${body.baseRevision},${JSON.stringify(body.state)}::jsonb,${user.id}::uuid,${user.version},${body.deviceId}::uuid,${body.createdAt}::timestamptz,${['windows','assistant'].includes(body.source)?body.source:'web'}) AS result`:
     await sql`SELECT desktop_push(${body.id}::uuid, ${body.baseRevision}, ${JSON.stringify(body.state)}::jsonb, ${user.username}, ${body.deviceId}::uuid, ${body.createdAt}::timestamptz) AS result`;
     const result = rows[0].result;
+    if(body.source==='assistant')await require('./integration-store').audit(user,'assistant','workspace_save',result.saved||result.revision&&!result.conflict&&!result.forbidden?'success':'denied',body.id);
     return res.status(result.unauthorized?401:result.forbidden?403:result.conflict ? 409 : 200).json(result.forbidden?{...result,error:'Seu perfil não permite estas alterações. A versão local foi preservada.'}:result);
   } catch { return res.status(503).json({ error: 'Sincronização indisponível. Verifique o banco de teste e a migração 003. Seus dados locais foram preservados.' }); }
 };

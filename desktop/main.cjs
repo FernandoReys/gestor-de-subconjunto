@@ -19,7 +19,7 @@ function saveCredential(value) {
 }
 async function remote(endpoint, method = 'GET', body) {
   if (!server) throw new Error('Configure o servidor HTTPS para autenticar e sincronizar.');
-  const response = await fetch(server + endpoint, { method, redirect: 'error', signal: AbortSignal.timeout(endpoint==='/api/auth.js'?5000:15000), headers: { Origin: server, 'Content-Type': 'application/json', ...(credential ? { Cookie: credential.cookie } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const response = await fetch(server + endpoint, { method, redirect: 'error', signal: AbortSignal.timeout(endpoint==='/api/auth.js'?5000:endpoint==='/api/support.js'?35000:15000), headers: { Origin: server, 'Content-Type': 'application/json', ...(credential ? { Cookie: credential.cookie } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const data = await response.json();
   return { response, data };
 }
@@ -55,6 +55,7 @@ async function request(endpoint, options = {}) {
     if(!active())return reply(401,{error:'Entre no Gestor para conectar o Google Agenda.'});
     if(!['GET','POST'].includes(method))return reply(405,{});
     const body=options.body?JSON.parse(options.body):undefined;
+    if(body?.action==='authorize'){await shell.openExternal(server+'/#agenda');return reply(200,{message:'Conecte sua conta Google na agenda do site usando o mesmo usuário. Depois volte ao programa.'});}
     if(['publish','resolve'].includes(body?.action)){
       await sync.run();if(store.head()||store.get('conflict'))return reply(409,{error:'Sincronize e resolva as versões do Gestor antes de enviar ao Google.'});
     }

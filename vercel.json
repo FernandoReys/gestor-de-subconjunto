@@ -43,6 +43,10 @@
     {
       "src": "api/approvals.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/google-callback.js",
+      "use": "@vercel/node"
     }
   ],
   "buildCommand": "npm run build",
