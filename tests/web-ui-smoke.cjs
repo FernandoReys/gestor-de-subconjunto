@@ -48,6 +48,11 @@ app.whenReady().then(async()=>{
   await run(`document.querySelector('#confirmDialog').close();config.end='21:54';prepareSupportSchedule();reviewSupportDraft();document.querySelector('#supportApply').click()`);await paint();
   assert.equal(await run(`!!result&&result.rows.length>0`),true);
   assert.equal(await run(`(config.history||[]).length`),0,'Apply must not finalize history');
+  assert.equal(await run(`config.generationSeed===result.config.generationSeed`),true,'Applying assistant preview preserves the reviewed draw');
+  const previousSeed=await run('config.generationSeed');
+  await run(`document.querySelector('#scheduleForm').requestSubmit()`);await paint();
+  assert.notEqual(await run('config.generationSeed'),previousSeed,'Generate draws again');
+  assert.equal(await run(`JSON.stringify(buildResult().rows)===JSON.stringify(result.rows)`),true,'Redraw is stable when reviewing the saved configuration');
   await run(`document.querySelector('#supportLauncher').click()`);await paint();
   await capture('web-chat-on-schedule.png');
   await run(`document.querySelector('#supportClose').click()`);

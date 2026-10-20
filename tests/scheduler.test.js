@@ -106,3 +106,14 @@ test('Fixações excedentes ou operador inicial conflitante bloqueiam geração'
  const people=flexible();people[0].fixed='30';people[1].fixed='30';assert.match(S.generate(S.defaults(),people).errors.join(' '),/não há vaga/);
  people[1].fixed='';assert.match(S.generate({...S.defaults(),manualAssignments:{'20-1':people[0].id}},people).errors.join(' '),/habilitação|fixação/);
 });
+
+test('Sorteios variam BSD sem priorizar cadastro ou preferência inicial e são reproduzíveis',()=>{
+ const people=flexible(12);people[0].name='Fernando';people[0].initial='20';
+ const starts=new Set();for(let i=0;i<40;i++){const config={...S.defaults(),generationSeed:'test-'+i},plan=S.generate(config,people);verifyPlan(plan,people);assert.equal(plan.complete,true);starts.add(plan.rows[0].assign[0]);assert.deepEqual(S.generate(plan.config,people).rows,plan.rows);}
+ assert.ok(starts.size>=6,'Sorteio deve variar o BSD entre operadores habilitados');assert.ok([...starts].some(id=>id!==people[0].id));
+});
+test('Sorteio preserva fixos, escolhas manuais, ausência e restrições',()=>{
+ const people=flexible(15);people[0].fixed='30';people[1].present=false;people[2].allowed=['60'];
+ const config={...S.defaults(),generationSeed:'safe-random',manualAssignments:{'20-1':people[3].id}};const plan=S.generate(config,people);verifyPlan(plan,people);assert.equal(plan.rows[0].assign[0],people[3].id);assert.ok(plan.rows.filter(r=>r.kind==='work').every(r=>r.assign[1]===people[0].id&&!r.assign.includes(people[1].id)));
+ assert.ok(S.generate({...config,generationSeed:{}},people).errors.length);assert.notEqual(S.newSeed(),S.newSeed());
+});

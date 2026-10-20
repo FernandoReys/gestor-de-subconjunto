@@ -54,8 +54,16 @@
     });
   }
   function extraSlots(config){return (Array.isArray(config.extraPosts)?config.extraPosts:[]).flatMap(p=>Array.from({length:Number(p.requiredCount)||1},(_,i)=>({id:p.id,key:`${p.id}-${i+1}`,name:p.name,slot:i+1,notes:p.notes||'',employeeId:p.employeeIds?.[i]||(!i?p.employeeId:'')||''})));}
+  function newSeed(){return Array.from(globalThis.crypto.getRandomValues(new Uint32Array(4))).join('-');}
+  function priority(seed,person,position,worked){
+    let value=2166136261;
+    for(const char of `${seed}|${person}|${position}|${worked}`)value=Math.imul(value^char.charCodeAt(0),16777619);
+    value=Math.imul(value^(value>>>16),0x7feb352d);value=Math.imul(value^(value>>>15),0x846ca68b);
+    return ((value^(value>>>16))>>>0)/4294967296*1000;
+  }
   function generate(config, employees) {
     const time=shift(config), errors=[...time.errors];
+    if(config.generationSeed!==undefined&&(typeof config.generationSeed!=='string'||!/^[-a-zA-Z0-9]{1,128}$/.test(config.generationSeed)))errors.push('Sorteio inválido. Gere uma nova escala.');
     const positions=[...slots(config),...extraSlots(config).map(p=>({...p,additional:true,limit:120}))];
     if(!positions.length||positions.length>10)errors.push('A linha aceita entre 1 e 10 posições, incluindo postos adicionais.');
     const locks=config.locks||{};
@@ -103,7 +111,7 @@
           if(current[j]!==null&&!due[j])return i===current[j];
           if(i===current[j])return false;
           return !visited[i].has(s.id);
-        }).map(({p,i})=>({i,score:1000000 + (s.id!=='40'&&visited[i].has('40')?5000:0) + (current[j]===i?3000:0) + (p.fixed||locks[s.key]===p.id?10000:0) + (worked===0&&(config.manualAssignments?.[s.key]===p.id||p.initial===s.id)?1500:0) - total[i] - i*.01}));
+        }).map(({p,i})=>({i,score:1000000 + (s.id!=='40'&&visited[i].has('40')?5000:0) + (current[j]===i?3000:0) + (p.fixed||locks[s.key]===p.id?10000:0) + (worked===0&&(config.manualAssignments?.[s.key]===p.id||(!config.generationSeed&&p.initial===s.id))?1500:0) - total[i] + (config.generationSeed?priority(config.generationSeed,p.id,s.key,worked):-i*.01)}));
       });
       // Track occupied positions instead of used people: at most 2^12 states.
       const size=1<<positions.length,choices=[],byPerson=people.map((_,i)=>[]);
@@ -172,5 +180,5 @@
     return {errors:[],warnings:plan.warnings,entries,workMinutes:plan.workMinutes,eligible:people.filter(p=>eligible(p,stations[2],config.date)).map(p=>p.id),config:plan.config,employees:plan.employees};
   }
 
-  return {stations,slots,extraSlots,minutes,clock,duration,shift,defaults,sampleEmployees,eligible,generate,generatePreckoff};
+  return {newSeed,stations,slots,extraSlots,minutes,clock,duration,shift,defaults,sampleEmployees,eligible,generate,generatePreckoff};
 });
