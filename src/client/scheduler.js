@@ -70,16 +70,22 @@
     if(new Set(people.map(p=>p.id)).size!==people.length) errors.push('Há identificadores de funcionários duplicados.');
     for(const s of positions)if(locks[s.key]&&!people.some(p=>p.id===locks[s.key]&&eligible(p,s,config.date)))errors.push(`Posto ${s.id}: operador fixado ausente ou sem habilitação.`);
     for(const [key,id] of initialAssignments){const s=positions.find(x=>x.key===key);if(!s||!people.some(p=>p.id===id&&eligible(p,s,config.date)))errors.push(`Posto ${s?.id||key}: operador inicial ausente ou sem habilitação.`);}
+    // Bind every fixed operator to one position for the entire shift.
+    const fixedAssignments={...locks};
+    for(const p of people.filter(p=>p.fixed)){
+      const existing=Object.entries(fixedAssignments).find(([,id])=>id===p.id);
+      if(existing)continue;
+      const target=positions.find(s=>s.id===p.fixed&&!fixedAssignments[s.key]);
+      if(!target){errors.push(`${p.name}: não há vaga para a fixação no posto ${p.fixed}.`);continue;}
+      if(!eligible(p,target,config.date)){errors.push(`${p.name}: posto fixo não está permitido pela restrição.`);continue;}
+      fixedAssignments[target.key]=p.id;
+    }
+    for(const [key,id] of initialAssignments)if((fixedAssignments[key]&&fixedAssignments[key]!==id)||Object.entries(fixedAssignments).some(([other,person])=>other!==key&&person===id))errors.push('Operador inicial entra em conflito com uma fixação.');
     if(errors.length) return {errors,rows:[],gaps:[],warnings:[],workMinutes:0};
     const warnings=[];
-    for(const s of stations.filter(s=>positions.some(x=>x.id===s.id))){
-      const fixed=people.filter(p=>p.fixed===s.id);
-      if(fixed.length>positions.filter(x=>x.id===s.id).length) warnings.push(`Posto ${s.id}: há ${fixed.length} pessoas fixas além das vagas. Revise as fixações.`);
-      if(fixed.length&&s.limit) warnings.push(`${s.name}: fixação entra em conflito com o limite de ${s.limit} min. O posto ficará pendente ao atingir o limite.`);
-    }
-    for(const p of people) if(p.fixed&&!eligible(p,stations.find(s=>s.id===p.fixed)||{})) warnings.push(`${p.name}: o posto fixo não está permitido pela restrição. Revise o cadastro.`);
-    const preckoffEligible=people.filter(p=>eligible(p,stations[2])).length;
-    const needed=Math.ceil(time.workMinutes/60)*positions.filter(s=>s.id==='40').length;
+    const rotatingPreckoff=positions.filter(s=>s.id==='40'&&!fixedAssignments[s.key]);
+    const preckoffEligible=people.filter(p=>!Object.values(fixedAssignments).includes(p.id)&&eligible(p,stations[2],config.date)).length;
+    const needed=Math.ceil(time.workMinutes/60)*rotatingPreckoff.length;
     if(preckoffEligible<needed) warnings.push(`Preckoff precisa de pelo menos ${needed} pessoas diferentes para ${duration(time.workMinutes)} efetivas sem retorno ao posto; há ${preckoffEligible} elegíveis. É necessário rever a equipe.`);
 
     let current=Array(positions.length).fill(null), continuous=Array(positions.length).fill(0), worked=0,lastGeneral=0;
@@ -87,12 +93,13 @@
     let lastKey='', lastRow;
     function choose(due,general) {
       const candidates=positions.map((s,j)=>{
-        const fixed=people.map((p,i)=>({p,i})).filter(({p})=>locks[s.key]?p.id===locks[s.key]:p.fixed===s.id);
+        const fixedId=fixedAssignments[s.key];
         return people.map((p,i)=>({p,i})).filter(({p,i})=>{
-          if(locks[s.key]&&p.id!==locks[s.key])return false;
+          if(fixedId&&p.id!==fixedId)return false;
           if(worked===0&&config.manualAssignments?.[s.key]&&p.id!==config.manualAssignments[s.key])return false;
-          if(Object.entries(locks).some(([key,id])=>key!==s.key&&id===p.id))return false;
-          if(!eligible(p,s,config.date)||(fixed.length&&!fixed.some(x=>x.i===i))) return false;
+          if(Object.entries(fixedAssignments).some(([key,id])=>key!==s.key&&id===p.id))return false;
+          if(!eligible(p,s,config.date)) return false;
+          if(fixedId)return true;
           if(current[j]!==null&&!due[j])return i===current[j];
           if(i===current[j])return false;
           return !visited[i].has(s.id);
@@ -119,7 +126,7 @@
       let reason='Continuidade';
       if(!pause){
         const general=false; // Each position has its own 120/60 effective-minute clock.
-        const due=positions.map((s,j)=>current[j]!==null&&s.limit!==null&&continuous[j]>=s.limit);
+        const due=positions.map((s,j)=>current[j]!==null&&!fixedAssignments[s.key]&&s.limit!==null&&continuous[j]>=s.limit);
         if(t===time.start||general||due.some(Boolean)){
           const next=choose(due,general);
           reason=t===time.start?'Início do turno':general?'Rodízio geral':due.map((d,j)=>d?positions[j].name:'').filter(Boolean).join(' + ');
@@ -150,20 +157,19 @@
     return {errors:[],warnings,rows,gaps,positions,workMinutes:time.workMinutes,people:people.map(p=>p.id),totals:Object.fromEntries(people.map((p,i)=>[p.id,total[i]])),complete:gaps.length===0&&warnings.length===0,config:JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(config).filter(([key])=>!['history','productionAgenda','fps','sectors','shifts'].includes(key))))),employees:JSON.parse(JSON.stringify(employees))};
   }
   function generatePreckoff(config, employees) {
-    const time=shift(config), station=stations.find(s=>s.id==='40');
-    if(time.errors.length) return {errors:time.errors,entries:[],warnings:[],workMinutes:0};
     const reserved=new Set(extraSlots(config).map(p=>p.employeeId).filter(Boolean));
-    const people=employees.filter(p=>(p.role||'Operador')==='Operador'&&!reserved.has(p.id)&&eligible(p,station));
-    const needed=Math.ceil(time.workMinutes/60), warnings=[];
-    if(people.length<needed) warnings.push(`Preckoff precisa de ${needed} pessoas diferentes para ${duration(time.workMinutes)} efetivas; há ${people.length} elegíveis.`);
-    const blocks=[]; let cursor=time.start;
-    for(const pause of time.breaks){if(cursor<pause.start)blocks.push({start:cursor,end:pause.start});cursor=pause.end;}
-    if(cursor<time.end) blocks.push({start:cursor,end:time.end});
-    const candidates=[...people].sort((a,b)=>(Number(b.supportPreckoff)-Number(a.supportPreckoff))||(a.initial==='40'?-1:0)-(b.initial==='40'?-1:0)||a.name.localeCompare(b.name,'pt-BR'));
-    const entries=[], used=new Set(); let active=null;
-    function nextEntry(){const person=candidates.find(p=>!used.has(p.id))||null;if(person)used.add(person.id);active={slot:entries.length+1,personId:person?.id||null,minutes:0,fragments:[]};entries.push(active);}
-    for(const block of blocks){let at=block.start;while(at<block.end){if(!active||active.minutes>=60)nextEntry();const take=Math.min(60-active.minutes,block.end-at);active.fragments.push({start:at,end:at+take});active.minutes+=take;at+=take;}}
-    return {errors:[],warnings,entries,workMinutes:time.workMinutes,eligible:people.map(p=>p.id),config:JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(config).filter(([key])=>!['history','productionAgenda','fps','sectors','shifts'].includes(key))))),employees:JSON.parse(JSON.stringify(employees))};
+    const positions=slots(config).filter(s=>s.id==='40');
+    const people=employees.filter(p=>!reserved.has(p.id)).sort((a,b)=>(Number(b.supportPreckoff)-Number(a.supportPreckoff))||(a.initial==='40'?-1:0)-(b.initial==='40'?-1:0)||a.name.localeCompare(b.name,'pt-BR'));
+    const select=values=>Object.fromEntries(Object.entries(values||{}).filter(([key])=>positions.some(s=>s.key===key)));
+    const plan=generate({...config,fpStations:[{id:'40',requiredCount:positions.length||1}],extraPosts:[],locks:select(config.locks),manualAssignments:select(config.manualAssignments)},people.filter(p=>!p.fixed||p.fixed==='40'));
+    if(plan.errors.length)return {errors:plan.errors,entries:[],warnings:[],workMinutes:0};
+    const entries=[],active=[];
+    for(const row of plan.rows){if(row.kind==='break')continue;for(const [j,id] of row.assign.entries()){
+      if(!active[j]||active[j].personId!==id){active[j]={slot:entries.length+1,position:plan.positions[j].key,personId:id,minutes:0,fragments:[]};entries.push(active[j]);}
+      active[j].minutes+=row.end-row.start;active[j].fragments.push({start:row.start,end:row.end});
+    }}
+    return {errors:[],warnings:plan.warnings,entries,workMinutes:plan.workMinutes,eligible:people.filter(p=>eligible(p,stations[2],config.date)).map(p=>p.id),config:plan.config,employees:plan.employees};
   }
+
   return {stations,slots,extraSlots,minutes,clock,duration,shift,defaults,sampleEmployees,eligible,generate,generatePreckoff};
 });

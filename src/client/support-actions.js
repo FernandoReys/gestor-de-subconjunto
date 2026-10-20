@@ -3,7 +3,7 @@
  'use strict';
  const definitions={
   open_page:{description:'Abrir uma página do Gestor.',fields:{page:['overview','agenda','schedule','employees','fp','history','settings','support']}},
-  prepare_schedule:{description:'Calcular prévia da escala atual com regras de 120 minutos e Preckoff de 60 minutos; aplicação exige revisão.',fields:{}},
+  prepare_schedule:{description:'Calcular prévia: fixos permanecem durante todo o período; rodízio de 120 minutos e Preckoff de 60 minutos; aplicação exige revisão.',fields:{}},
   diagnose_system:{description:'Verificar estado local de salvamento, conflitos e pendências. Não altera código.',fields:{}},
   edit_employee:{description:'Abrir cadastro para criar ou editar funcionário por nome exato. Não invente permissões, restrições ou disponibilidade. A pessoa revisa e salva.',fields:{existingName:'text',name:'text',role:['Operador','Assistente'],present:'boolean',sector:'text'}},
   edit_fp:{description:'Abrir formulário de FP para criar ou editar pelo código exato. Não inventar especificações técnicas. Usuário revisa postos e salva.',fields:{existingCode:'text',fp:'text',name:'text',market:['Nacional','Internacional'],revision:'text',variation:'text',product:'text'}},

@@ -18,7 +18,7 @@ function verifyPlan(plan,people){
    }
    if(id!==previous[j])runs[j]=0;
    if(id)runs[j]+=row.end-row.start;
-   if(S.stations[j].limit)assert.ok(runs[j]<=S.stations[j].limit,'Limite de permanência excedido');
+   if(S.stations[j].limit&&!people.find(p=>p.id===id)?.fixed&&plan.config.locks?.[plan.positions[j].key]!==id)assert.ok(runs[j]<=S.stations[j].limit,'Limite de permanência excedido');
   });previous=row.assign;
  }
  assert.equal(cursor,S.minutes(plan.config.end));assert.equal(effective,plan.workMinutes);
@@ -27,11 +27,11 @@ test('Exemplo de seis pessoas: preserva Maria, os intervalos e evidencia impossi
  const people=S.sampleEmployees(),r=S.generate(S.defaults(),people);verifyPlan(r,people);assert.equal(r.workMinutes,426);assert.ok(r.gaps.length);assert.equal(r.complete,false);assert.match(r.warnings.join(' '),/pelo menos 8 pessoas/);
  assert.deepEqual(r.rows.filter(x=>x.kind==='break').map(x=>[S.clock(x.start),S.clock(x.end)]),[['16:00','16:15'],['18:10','18:43']]);
  assert.ok(r.rows.filter(x=>x.kind==='work').every(row=>row.assign[1]===null||row.assign[1]==='demo-6'));
- assert.equal(r.totals['demo-6'],120);
+ assert.equal(r.totals['demo-6'],r.workMinutes);
 });
 test('Equipe habilitada gera cobertura completa sem repetição',()=>{const p=withRelief().map(x=>({...x,noGlue:false,fixed:'',allowed:S.stations.map(s=>s.id)})),r=S.generate(S.defaults(),p);verifyPlan(r,p);assert.equal(r.complete,true);assert.equal(r.gaps.length,0);});
-test('Ausência e fixação incompatível não são contornadas',()=>{const p=S.sampleEmployees();p[0].present=false;p[1].fixed='40';const r=S.generate(S.defaults(),p);verifyPlan(r,p);assert.ok(r.warnings.some(w=>w.includes('fixação')));assert.ok(r.rows.every(x=>!x.assign.includes(p[0].id)));assert.ok(r.gaps.length);});
-test('Funcionário sem cola não ocupa outro posto mesmo com cadastro inconsistente',()=>{const p=withRelief();p[0].noGlue=true;p[0].fixed='20';const r=S.generate(S.defaults(),p);verifyPlan(r,p);assert.ok(r.warnings.some(w=>w.includes('não está permitido')));assert.ok(r.rows.every(x=>!x.assign.includes(p[0].id)));});
+test('Ausência e fixação incompatível não são contornadas',()=>{const p=S.sampleEmployees();p[0].present=false;p[1].fixed='40';const r=S.generate(S.defaults(),p);verifyPlan(r,p);assert.ok(r.rows.filter(x=>x.kind==='work').every(x=>x.assign[2]===p[1].id));assert.ok(r.rows.every(x=>!x.assign.includes(p[0].id)));assert.ok(r.gaps.length);});
+test('Funcionário sem cola não ocupa outro posto mesmo com cadastro inconsistente',()=>{const p=withRelief();p[0].noGlue=true;p[0].fixed='20';const r=S.generate(S.defaults(),p);assert.match(r.errors.join(' '),/não está permitido/);assert.equal(r.rows.length,0);});
 test('Horários inválidos ou sobrepostos bloqueiam geração',()=>{for(const c of [{end:'13:00'},{coffee:'18:00',coffeeDuration:30},{lunchDuration:150},{start:'x'}])assert.ok(S.generate({...S.defaults(),...c},S.sampleEmployees()).errors.length);});
 test('Modo a cada duas horas é verificável sem apagar o tempo nas pausas',()=>{const p=withRelief(),r=S.generate({...S.defaults(),rotation:'everyTwoHours'},p);verifyPlan(r,p);assert.ok(r.rows.some(x=>x.start===975&&x.kind==='work'));});
 test('Assistente não entra no rodízio; posto adicional troca a cada duas horas',()=>{
@@ -54,13 +54,13 @@ test('FP com duas pessoas no preckoff exige ambas as posições e não repete op
  assert.deepEqual(plan.errors,[]);
  for(const row of plan.rows.filter(r=>r.kind==='work'))assert.equal(new Set(row.assign.filter(Boolean)).size,row.assign.filter(Boolean).length);
 });
-test('Fixação respeita habilidades e expira ao atingir o limite de permanência',()=>{
- const people=withRelief(),id=people[0].id,config={...S.defaults(),locks:{'30-1':id}};
+test('Fixação cobre todo o período e respeita presença e habilidades',()=>{
+ const people=withRelief().map(p=>({...p,fixed:'',noGlue:false,allowed:S.stations.map(s=>s.id)})),id=people[0].id,config={...S.defaults(),locks:{'30-1':id}};
  const plan=S.generate(config,people);
  assert.deepEqual(plan.errors,[]);
  assert.ok(plan.rows.filter(r=>r.kind==='work').every(r=>r.assign[1]===id||r.assign[1]===null));
- assert.ok(plan.gaps.some(g=>g.station==='30-1'));
- let minutes=0;for(const row of plan.rows)if(row.kind==='work'&&row.assign[1]===id)minutes+=row.end-row.start;assert.equal(minutes,120);
+ assert.ok(!plan.gaps.some(g=>g.station==='30-1'));
+ let minutes=0;for(const row of plan.rows)if(row.kind==='work'&&row.assign[1]===id)minutes+=row.end-row.start;assert.equal(minutes,plan.workMinutes);
  people[0].present=false;
  assert.match(S.generate(config,people).errors.join(' '),/ausente/);
  people[0].present=true;people[0].restrictions=[{stationId:'30',reason:'Restrição temporária'}];
@@ -92,4 +92,17 @@ test('Preckoff com duas posições não reutiliza pessoa em outra posição do m
 test('Equipe insuficiente gera lacuna sem retirar pessoa cedo de outro posto',()=>{
  const plan=S.generate(S.defaults(),flexible(6));assert.ok(plan.gaps.length);
  let previous=null,worked=0;for(const row of plan.rows){if(row.kind==='break')continue;if(worked<120){if(previous)for(const j of [0,1,3,4,5])assert.equal(row.assign[j],previous[j]);}worked+=row.end-row.start;previous=row.assign;}
+});
+
+test('Fixos no Preckoff, em múltiplas posições e locks não entram no rodízio',()=>{
+ const people=flexible(20);people[0].fixed='40';people[1].fixed='40';
+ const config={...S.defaults(),fpStations:[{id:'20',requiredCount:1},{id:'40',requiredCount:2}],locks:{'20-1':people[2].id}};
+ const plan=S.generate(config,people);assert.deepEqual(plan.errors,[]);assert.equal(plan.complete,true);
+ for(const row of plan.rows.filter(x=>x.kind==='work'))assert.deepEqual(row.assign,[people[2].id,people[0].id,people[1].id]);
+ const preckoff=S.generatePreckoff(config,people);assert.deepEqual(preckoff.errors,[]);assert.equal(preckoff.entries.length,2);assert.ok(preckoff.entries.every(x=>x.minutes===plan.workMinutes));
+ people[1].present=false;assert.ok(S.generate(config,people).rows.filter(x=>x.kind==='work').every(x=>!x.assign.includes(people[1].id)));
+});
+test('Fixações excedentes ou operador inicial conflitante bloqueiam geração',()=>{
+ const people=flexible();people[0].fixed='30';people[1].fixed='30';assert.match(S.generate(S.defaults(),people).errors.join(' '),/não há vaga/);
+ people[1].fixed='';assert.match(S.generate({...S.defaults(),manualAssignments:{'20-1':people[0].id}},people).errors.join(' '),/habilitação|fixação/);
 });
