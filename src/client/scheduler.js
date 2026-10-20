@@ -159,6 +159,7 @@
   function generatePreckoff(config, employees) {
     const reserved=new Set(extraSlots(config).map(p=>p.employeeId).filter(Boolean));
     const positions=slots(config).filter(s=>s.id==='40');
+    for(const [key,id] of Object.entries(config.locks||{}))if(!positions.some(s=>s.key===key))reserved.add(id);
     const people=employees.filter(p=>!reserved.has(p.id)).sort((a,b)=>(Number(b.supportPreckoff)-Number(a.supportPreckoff))||(a.initial==='40'?-1:0)-(b.initial==='40'?-1:0)||a.name.localeCompare(b.name,'pt-BR'));
     const select=values=>Object.fromEntries(Object.entries(values||{}).filter(([key])=>positions.some(s=>s.key===key)));
     const plan=generate({...config,fpStations:[{id:'40',requiredCount:positions.length||1}],extraPosts:[],locks:select(config.locks),manualAssignments:select(config.manualAssignments)},people.filter(p=>!p.fixed||p.fixed==='40'));

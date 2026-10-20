@@ -99,7 +99,7 @@ test('Fixos no Preckoff, em múltiplas posições e locks não entram no rodízi
  const config={...S.defaults(),fpStations:[{id:'20',requiredCount:1},{id:'40',requiredCount:2}],locks:{'20-1':people[2].id}};
  const plan=S.generate(config,people);assert.deepEqual(plan.errors,[]);assert.equal(plan.complete,true);
  for(const row of plan.rows.filter(x=>x.kind==='work'))assert.deepEqual(row.assign,[people[2].id,people[0].id,people[1].id]);
- const preckoff=S.generatePreckoff(config,people);assert.deepEqual(preckoff.errors,[]);assert.equal(preckoff.entries.length,2);assert.ok(preckoff.entries.every(x=>x.minutes===plan.workMinutes));
+ const preckoff=S.generatePreckoff(config,people);assert.deepEqual(preckoff.errors,[]);assert.equal(preckoff.entries.length,2);assert.ok(preckoff.entries.every(x=>x.minutes===plan.workMinutes));assert.ok(!preckoff.eligible.includes(people[2].id),'Fixo em outro posto não entra no plano Preckoff');
  people[1].present=false;assert.ok(S.generate(config,people).rows.filter(x=>x.kind==='work').every(x=>!x.assign.includes(people[1].id)));
 });
 test('Fixações excedentes ou operador inicial conflitante bloqueiam geração',()=>{
